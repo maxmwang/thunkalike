@@ -1,0 +1,9 @@
+node_modules
+
+.env
+.eslintrc.json
+.vscode
+.DS_store
+.gitattributes
+build
+images
