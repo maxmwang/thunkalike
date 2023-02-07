@@ -1,5 +1,8 @@
-import type Game from './game/Game';
+import type { Server, Socket } from 'socket.io';
 
+import ClassicGame from './game/classic/ClassicGame';
+import ClassicPlayer from './game/classic/ClassicPlayer';
+import type Game from './game/Game';
 
 class GameManager {
   /**
@@ -11,8 +14,10 @@ class GameManager {
     this.games = {};
   }
 
-  createClassicGame() {
-
+  createClassicGame(io: Server) {
+    const code = this.generateUniqueCode();
+    this.games[code] = new ClassicGame(code, io);
+    return code;
   }
 
   // generates unique 4-letter game code

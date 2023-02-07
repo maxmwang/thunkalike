@@ -23,7 +23,7 @@ class ClassicPlayer extends Player {
     this._game = game;
 
     this._socket.on('ready', () => {
-      this._game.playersReady.add(this.username);
+      this._game.readyPlayer(this);
     });
 
     this._socket.on('endGame', () => {
@@ -38,13 +38,6 @@ class ClassicPlayer extends Player {
       }
       this.answer = answer;
     });
-  }
-
-  override json() {
-    return {
-      ...super.json(),
-      score: this.score,
-    };
   }
 }
 

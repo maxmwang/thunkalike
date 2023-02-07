@@ -5,37 +5,21 @@ import { GamePhases, RoundPhases } from '../const';
 import Game from '../Game';
 
 class ClassicGame extends Game {
-  private _players: ClassicPlayer[] = [];
+  protected override _players: ClassicPlayer[] = [];
 
-  playersReady: Set<string> = new Set();
+  protected override playersReady: Set<ClassicPlayer['username']> = new Set();
 
-  private _spectators: ClassicPlayer[] = [];
+  protected override _spectators: ClassicPlayer[] = [];
 
   /**
    * The player on The Pedestal.
    */
-  thePedestal: ClassicPlayer = this.host as ClassicPlayer;
+  thePedestal!: ClassicPlayer;
 
   private thePedestalIndex: number = 0;
 
-  addPlayer(username: string, socket: Socket) {
-    for (const player of this._players) {
-      if (player.username === username) {
-        return;
-      }
-    }
-
-    const newPlayer = new ClassicPlayer(username, socket, this);
-    if (this.gamePhase !== GamePhases.LOBBY) {
-      this._spectators.push(newPlayer);
-    } else {
-      this._players.push(newPlayer);
-    }
-  }
-
-  removePlayer(username: string): void {
-    this._players = this._players.filter((player) => player.username !== username);
-    this._spectators = this._spectators.filter((player) => player.username !== username);
+  protected newPlayer(username: string, socket: Socket) {
+    return new ClassicPlayer(username, socket, this);
   }
 
   start() {
@@ -47,7 +31,7 @@ class ClassicGame extends Game {
       throw new Error('Not enough players.');
     }
 
-    super.start();
+    this.gamePhase = GamePhases.ONGOING;
 
     // randomize player order
     for (let i = 0; i < this._players.length; i++) {
@@ -59,18 +43,26 @@ class ClassicGame extends Game {
 
     while ((this.gamePhase as GamePhases) === GamePhases.ONGOING) {
       if (this._players.length === this.playersReady.size) {
+        this.roundStart();
+
         this.previewPhase();
 
         this.answerPhase();
 
         this.revealPhase();
-
-        this.roundEnd();
       } else {
         // slow game loop
         setTimeout(() => {}, 1000);
       }
     }
+  }
+
+  protected override roundStart() {
+    // move spectators to players
+    this._players.concat(this._spectators);
+    this._spectators = [];
+
+    super.roundStart();
   }
 
   private previewPhase() {
@@ -99,32 +91,35 @@ class ClassicGame extends Game {
 
     this.calculateScores();
 
-    const results = this._players.map((player) => player.json());
+    const results = this._players.map((player) => ({
+      username: player.username,
+      score: player.score,
+      answer: player.answer,
+    }));
 
     this.broadcast(this.roundPhase, results);
   }
 
-  private roundEnd() {
-    this.playersReady = new Set();
-
-    this._players.concat(this._spectators);
-    this._spectators = [];
-
-    this._players.forEach((player) => {
-      player.answer = '';
-    });
-  }
-
   private calculateScores() {
+    let matches = 0;
     this._players.forEach((player) => {
       if (player !== this.thePedestal && player.answer === this.thePedestal.answer) {
-        this.thePedestal.score += 1;
-        player.score += 1;
+        matches++;
+        player.score += 10;
       }
     });
+    this.thePedestal.score += Math.max((matches / (this._players.length - 1)) * 10, 5);
   }
 
   end() {}
+
+  json() {
+    return {
+      ...super.json(),
+      players: this._players.map((player) => ({ username: player.username, score: player.score })),
+      thePedestal: this.thePedestal.username,
+    };
+  }
 }
 
 export default ClassicGame;

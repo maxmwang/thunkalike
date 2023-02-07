@@ -23,13 +23,6 @@ class Player {
     this.username = username;
     this._socket = socket;
   }
-
-  json() {
-    return {
-      username: this.username,
-      answer: this.answer,
-    };
-  }
 }
 
 export default Player;
