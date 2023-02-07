@@ -103,7 +103,8 @@ class ClassicGame extends Game {
   private calculateScores() {
     let matches = 0;
     this._players.forEach((player) => {
-      if (player !== this.thePedestal && player.answer === this.thePedestal.answer) {
+      if (player !== this.thePedestal
+          && this.answersMatch(player.answer, this.thePedestal.answer)) {
         matches++;
         player.score += 10;
       }

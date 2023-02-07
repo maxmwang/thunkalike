@@ -1,4 +1,5 @@
 import type { Server, Socket } from 'socket.io';
+import stringSim from 'string-similarity';
 
 import type { GameOptions, RoundPhases } from './const';
 import { GamePhases } from './const';
@@ -134,6 +135,14 @@ abstract class Game {
 
   protected loadWords() {
     this._words = wordsFromFile(this.options.source);
+  }
+
+  protected answersMatch(w1: string, w2: string) {
+    w1 = w1.toLowerCase().trim();
+    w2 = w2.toLowerCase().trim();
+
+    // Words are the same if they are 80% similar
+    return stringSim.compareTwoStrings(w1, w2) > 0.9;
   }
 
   /**
