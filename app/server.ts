@@ -1,14 +1,19 @@
 import http from 'http';
 import * as path from 'path';
 
+import * as dotenv from 'dotenv';
 import express from 'express';
 import { Server } from 'socket.io';
 
 import GameManager from './GameManager';
 
+dotenv.config();
+
 const PORT = Number(process.env.PORT) || 5000;
 
 const app = express();
+
+app.use(express.json());
 
 const gm = new GameManager();
 // GameManager middleware
