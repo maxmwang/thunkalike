@@ -38,6 +38,8 @@ function PlayerList({
       ))}
     </div>
   );
+
+  // TODO: add spectator list
 }
 
 export default PlayerList;

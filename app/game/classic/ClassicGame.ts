@@ -73,7 +73,6 @@ class ClassicGame extends Game {
 
     this.broadcast(this.roundPhase, this.thePedestal.username);
 
-    // TODO: wait 5 seconds or until all answers are in
     setTimeout(() => {}, 5000);
   }
 
