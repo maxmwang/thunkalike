@@ -5,27 +5,28 @@ const router = express.Router();
 router.route('/checkName').get((req, res) => {
   const { code, username } = req.query as { code: string; username: string };
 
-  console.log(code, username);
-
   if (!code || !username) {
     res.status(400).send({ error: { type: 'invalid', message: 'Invalid request' } });
     return;
   }
 
-  if (!req.gm!.games[code]) {
+  const game = req.gm!.getGame(code);
+  if (!game) {
     res.status(400).send({ error: { type: 'code', message: 'Game not found' } });
     return;
   }
 
-  if (req.gm!.games[code].checkName(username)) {
+  if (game.checkName(username)) {
     res.status(400).send({ error: { type: 'username', message: 'Username already taken' } });
-  } else {
-    res.status(200).send({ success: true });
+    return;
   }
+
+  res.status(200).send({ success: true });
 });
 
 router.route('/game/create').post((req, res) => {
   const { username, mode } = req.body as { username: string, mode: string };
+
   if (!username) {
     res.status(400).send({ error: { type: 'username', message: 'Invalid request' } });
     return;

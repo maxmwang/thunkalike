@@ -62,9 +62,11 @@ abstract class Game {
    */
   options: GameOptions = { source: 'standard' };
 
-  constructor(code: string, io: Server) {
+  constructor(code: string, io: Server, protected removeGame: (code: string) => void) {
     this.code = code;
     this.broadcast = (event: string, ...args: any[]) => io.to(this.code).emit(event, ...args);
+
+    this.removeGame = removeGame;
   }
 
   /**
@@ -72,22 +74,16 @@ abstract class Game {
    */
   protected abstract newPlayer(username: string, socket: Socket): Player;
 
-  addPlayer(username: string, socket: Socket, isHost: boolean = false) {
-    if (isHost && this.host) {
+  addPlayer(username: string, socket: Socket) {
+    if (this.checkName(username)) {
       return;
-    }
-
-    for (const player of this._players) {
-      if (player.username === username) {
-        return;
-      }
     }
 
     const newPlayer = this.newPlayer(username, socket);
     if (this.gamePhase !== GamePhases.LOBBY) {
       this._spectators.push(newPlayer);
     } else {
-      if (isHost) {
+      if (this._players.length === 0) {
         this.host = newPlayer;
       }
       this._players.push(newPlayer);
@@ -95,15 +91,19 @@ abstract class Game {
     this.broadcast('playerJoin', this.json());
   }
 
-  removePlayer(username: string) {
-    if (!this._players.some((player) => player.username === username)
-      || !this._spectators.some((player) => player.username === username)) {
+  removePlayer(player: Player) {
+    if (!this._players.some((p) => p === player)
+      && !this._spectators.some((p) => p === player)) {
       return;
     }
 
-    this._players = this._players.filter((player) => player.username !== username);
-    this._spectators = this._spectators.filter((player) => player.username !== username);
+    this._players = this._players.filter((p) => p !== player);
+    this._spectators = this._spectators.filter((p) => p !== player);
     this.broadcast('playerLeave', this.json());
+
+    if (this._players.length === 0 && this._spectators.length === 0) {
+      this.removeGame(this.code);
+    }
   }
 
   readyPlayer(player: Player) {
@@ -155,6 +155,8 @@ abstract class Game {
   json() {
     return {
       code: this.code,
+      mode: this.constructor.name,
+      phase: this.gamePhase,
       host: this.host.username,
       players: this._players.map((player) => ({ username: player.username })),
       spectators: this._spectators.map((player) => ({ username: player.username })),

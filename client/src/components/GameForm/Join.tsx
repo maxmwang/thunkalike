@@ -1,15 +1,13 @@
 import { Button, Fade, TextField } from '@mui/material';
 import React, { useState } from 'react';
 
-import { checkName } from '../api/axios';
-import { joinGame } from '../api/socket';
-import Views from '../const';
+import { checkName } from '../../api/axios';
 
 interface JoinProps {
-  setView: (view: Views) => void;
+  joinGame: (code: string, username: string) => void;
   code: string | undefined;
 }
-function Join({ setView, code }: JoinProps) {
+function Join({ joinGame, code }: JoinProps) {
   const [formData, setFormData] = useState({
     code: code || '',
     username: '',
@@ -28,7 +26,11 @@ function Join({ setView, code }: JoinProps) {
       return;
     }
 
-    setFormData({ ...formData, codeError: '', usernameError: '' });
+    setFormData({
+      ...formData,
+      codeError: '',
+      usernameError: '',
+    });
 
     const data = await checkName(formData.code, formData.username);
     if (data.error) {
@@ -46,7 +48,6 @@ function Join({ setView, code }: JoinProps) {
     }
 
     joinGame(formData.code, formData.username);
-    setView(Views.GAME);
   };
 
   const handleInput = (type: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -57,6 +58,7 @@ function Join({ setView, code }: JoinProps) {
     <Fade in>
       <form className="game-form" onSubmit={handleSubmit}>
         <TextField
+          id="code-input"
           variant="standard"
           label="Game Code"
           value={formData.code}
@@ -75,6 +77,7 @@ function Join({ setView, code }: JoinProps) {
         />
 
         <Button
+          className="button"
           type="submit"
           variant="contained"
           onClick={handleSubmit}

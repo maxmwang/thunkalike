@@ -1,9 +1,8 @@
 import { Tab, Tabs } from '@mui/material';
 import React, { useEffect, useState } from 'react';
 
-import Create from '../components/Create';
-import Join from '../components/Join';
-import type Views from '../const';
+import Create from '../components/GameForm/Create';
+import Join from '../components/GameForm/Join';
 
 import '../styles/views/landing.css';
 
@@ -13,10 +12,10 @@ enum LandingTabs {
 }
 
 interface LandingProps {
-  setView: (view: Views) => void;
+  joinGame(gameCode: string, username: string): void;
   code: string | undefined;
 }
-function Landing({ setView, code }: LandingProps) {
+function Landing({ joinGame, code }: LandingProps) {
   const [tab, setTab] = useState<LandingTabs>(LandingTabs.CREATE);
 
   useEffect(() => {
@@ -26,14 +25,14 @@ function Landing({ setView, code }: LandingProps) {
   }, []);
 
   return (
-    <div id="landing">
+    <div id="landing" className="paper">
       <Tabs value={tab} onChange={(_, n) => setTab(n)}>
         <Tab label="Create" />
         <Tab label="Join" />
       </Tabs>
 
-      {tab === LandingTabs.CREATE ? <Create setView={setView} /> : null}
-      {tab === LandingTabs.JOIN ? <Join setView={setView} code={code} /> : null}
+      {tab === LandingTabs.CREATE ? <Create joinGame={joinGame} /> : null}
+      {tab === LandingTabs.JOIN ? <Join joinGame={joinGame} code={code} /> : null}
     </div>
   );
 }

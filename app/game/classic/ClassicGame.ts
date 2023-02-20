@@ -120,7 +120,7 @@ class ClassicGame extends Game {
     return {
       ...super.json(),
       players: this._players.map((player) => ({ username: player.username, score: player.score })),
-      thePedestal: this.thePedestal.username,
+      thePedestal: this.thePedestal?.username,
     };
   }
 }

@@ -7,6 +7,9 @@ export default defineConfig({
   server: {
     open: true,
     proxy: {
+      '/api': {
+        target: 'http://localhost:8080',
+      },
       '/socket.io': {
         target: 'http://localhost:8080',
         ws: true,

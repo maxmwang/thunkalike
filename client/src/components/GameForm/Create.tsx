@@ -1,28 +1,21 @@
 import {
   Button,
   Fade,
-  FormControl,
-  FormControlLabel,
-  FormLabel,
-  Radio,
-  RadioGroup,
   TextField,
+  Typography,
 } from '@mui/material';
 import React, { useState } from 'react';
 
-import { gameCreate } from '../api/axios';
-import { joinGame } from '../api/socket';
-import Views from '../const';
+import { gameCreate } from '../../api/axios';
 
 interface CreateProps {
-  setView: (view: Views) => void;
+  joinGame: (code: string, username: string) => void;
 }
-function Create({ setView }: CreateProps) {
+function Create({ joinGame }: CreateProps) {
   const [formData, setFormData] = useState({
     username: '',
     usernameError: '',
     mode: 'classic',
-    modeError: '',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -35,14 +28,13 @@ function Create({ setView }: CreateProps) {
 
     setFormData({ ...formData, usernameError: '' });
 
-    const data = await gameCreate(formData.username);
+    const data = await gameCreate(formData.mode, formData.username);
     if (data.error) {
       setFormData({ ...formData, usernameError: data.error.message });
       return;
     }
 
     joinGame(data.code!, formData.username);
-    setView(Views.GAME);
   };
 
   const handleInput = (type: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -52,17 +44,21 @@ function Create({ setView }: CreateProps) {
   return (
     <Fade in>
       <form className="game-form" onSubmit={handleSubmit}>
-        <FormControl>
-          <FormLabel>Game Mode</FormLabel>
-          <RadioGroup
-            row
-            value={formData.mode}
-            onChange={handleInput('mode')}
+        <div className="game-mode">
+          <RadioButton
+            selected={formData.mode === 'classic'}
+            setMode={() => setFormData({ ...formData, mode: 'classic' })}
           >
-            <FormControlLabel value="classic" control={<Radio size="small" />} label="Classic" />
-            <FormControlLabel value="duet" control={<Radio size="small" />} label="Duet" />
-          </RadioGroup>
-        </FormControl>
+            <Typography>Classic</Typography>
+          </RadioButton>
+
+          <RadioButton
+            selected={formData.mode === 'duet'}
+            setMode={() => setFormData({ ...formData, mode: 'duet' })}
+          >
+            <Typography>Duet</Typography>
+          </RadioButton>
+        </div>
 
         <TextField
           variant="standard"
@@ -74,6 +70,7 @@ function Create({ setView }: CreateProps) {
         />
 
         <Button
+          className="button"
           type="submit"
           variant="contained"
           onClick={handleSubmit}
@@ -82,6 +79,25 @@ function Create({ setView }: CreateProps) {
         </Button>
       </form>
     </Fade>
+  );
+}
+
+interface RadioButtonProps extends React.PropsWithChildren {
+  selected: boolean;
+  setMode: () => void;
+}
+function RadioButton({
+  selected, setMode, children,
+}: RadioButtonProps) {
+  return (
+    <button
+      type="button"
+      className="pill pill-button"
+      style={selected ? { boxShadow: '6px 6px' } : {}}
+      onClick={setMode}
+    >
+      {children}
+    </button>
   );
 }
 

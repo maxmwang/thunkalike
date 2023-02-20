@@ -24,8 +24,8 @@ interface GameCreateResponse {
     message: string;
   };
 }
-export async function gameCreate(username: string): Promise<GameCreateResponse> {
-  const res = await axios.post('/game/create', { username });
+export async function gameCreate(mode: string, username: string): Promise<GameCreateResponse> {
+  const res = await axios.post('/game/create', { mode, username });
 
   return res.data as GameCreateResponse;
 }

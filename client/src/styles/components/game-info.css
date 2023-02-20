@@ -1,0 +1,14 @@
+#game-info {
+  width: 100%;
+  height: 100%;
+
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 10px
+}
+
+#game-info>.code {
+  width: 65px;
+}

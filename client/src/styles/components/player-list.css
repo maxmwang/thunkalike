@@ -1,0 +1,44 @@
+#player-list {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 10px;
+}
+
+.player-listing {
+  width: 80%;
+  height: 40px;
+
+  padding: 10px;
+  margin: 0 10px;
+
+  position: relative;
+
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 5px;
+
+  background-color: var(--color-white-light);
+  box-shadow: 3px 3px;
+  border: 1px solid var(--color-black);
+  border-radius: 5px;
+
+  box-sizing: border-box;
+}
+
+.player-listing>.icon {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: center;
+  width: 20px;
+}
+
+.player-listing>.username {
+  width: 50px;
+  overflow: hidden;
+  flex-grow: 100;
+}
