@@ -20,11 +20,11 @@ interface AbstractGameData {
   phase: GamePhases;
   host: string;
   players: [{ username: string }];
-  thePedestal?: string;
 }
 
 export interface ClassicGameData extends AbstractGameData {
   players: [{ username: string, score: number }];
+  thePedestal: string;
 }
 
 export interface DuetGameData extends AbstractGameData {}

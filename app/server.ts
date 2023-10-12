@@ -40,7 +40,7 @@ io.on('connection', async (socket) => {
       return;
     }
 
-    if (game.checkName(username)) {
+    if (game.usernameExists(username)) {
       socket.emit('error', 'Name already taken');
       return;
     }

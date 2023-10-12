@@ -3,7 +3,7 @@ import type { Socket } from 'socket.io';
 import { RoundPhases } from './const';
 import type Game from './Game';
 
-class Player {
+abstract class Player {
   /**
    * The player's unique username.
    */
@@ -12,12 +12,12 @@ class Player {
   /**
    * The player's websocket reference.
    */
-  protected _socket: Socket;
+  protected socket: Socket;
 
   /**
    * The game the player is in.
    */
-  protected _game: Game;
+  protected game: Game;
 
   /**
    * The player's latest answer.
@@ -26,38 +26,48 @@ class Player {
 
   constructor(username: string, socket: Socket, game: Game) {
     this.username = username;
-    this._socket = socket;
-    this._game = game;
+    this.socket = socket;
+    this.game = game;
 
-    this._socket.join(this._game.code);
-    this._socket.emit('selfJoin', username);
+    this.socket.join(this.game.code);
+    this.socket.emit('selfJoin', username);
 
-    this._socket.on('ready', () => {
-      this._game.readyPlayer(this);
+    this.socket.on('ready', () => {
+      this.game.readyPlayer(this);
     });
 
-    this._socket.on('startGame', () => {
-      if (this._game.host.username === this.username) {
-        this._game.start();
+    this.socket.on('startGame', () => {
+      if (this.game.host.username === this.username) {
+        this.game.start();
       }
     });
 
-    this._socket.on('endGame', () => {
-      if (this._game.host.username === this.username) {
-        this._game.end();
+    this.socket.on('endGame', () => {
+      if (this.game.host.username === this.username) {
+        this.game.end();
       }
     });
 
-    this._socket.on('answer', (answer: string) => {
-      if (this._game.roundPhase !== RoundPhases.ANSWER_PHASE) {
-        return;
+    this.socket.on('answer', (answer: string) => {
+      if (this.game.roundPhase === RoundPhases.ANSWER_PHASE) {
+        this.answer = answer.trim().toLowerCase();
       }
-      this.answer = answer;
     });
 
-    this._socket.on('disconnect', () => {
-      this._game.removePlayer(this);
+    this.socket.on('disconnect', () => {
+      this.game.removePlayer(this);
     });
+  }
+
+  reset() {
+    this.answer = '';
+  }
+
+  json() {
+    return {
+      username: this.username,
+      answer: this.game.roundPhase === RoundPhases.REVEAL_PHASE ? this.answer : undefined,
+    };
   }
 }
 

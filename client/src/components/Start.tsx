@@ -13,7 +13,7 @@ function Start({ username, host }: StartProps) {
   if (username === host) {
     return (
       <div id="start">
-        <Button variant="contained" onSubmit={startGame}>Start</Button>
+        <Button variant="contained" onClick={startGame}>Start</Button>
       </div>
     );
   }

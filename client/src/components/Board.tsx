@@ -1,7 +1,9 @@
 import { Grid } from '@mui/material';
 import React from 'react';
 
+import AnswerInput from './AnswerInput';
 import Timer from './Timer';
+import WordDisplay from './WordDisplay';
 
 function Board() {
   return (
@@ -10,10 +12,10 @@ function Board() {
         <Timer />
       </Grid>
       <Grid item xs={6}>
-        <p>The Word</p>
+        <WordDisplay />
       </Grid>
       <Grid item xs={4}>
-        <p>Answer Input</p>
+        <AnswerInput />
       </Grid>
     </Grid>
   );

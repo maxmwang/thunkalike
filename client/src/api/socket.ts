@@ -12,34 +12,37 @@ export function init() {
 }
 
 export function joinGame(code: string, username: string) {
-  if (!socket) {
-    init();
-  }
+  init();
 
   socket!.emit('joinGame', code, username);
 }
 
 export function startGame() {
-  if (!socket) {
-    init();
-  }
+  init();
 
   socket!.emit('startGame');
 }
 
 export function endGame() {
-  if (!socket) {
-    init();
-  }
+  init();
 
   socket!.emit('endGame');
 }
 
-export function on(event: string, callback: (...args: any[]) => void) {
-  if (!socket) {
-    init();
-  }
+export function ready() {
+  init();
 
-  socket.off(event, callback);
+  socket!.emit('ready');
+}
+
+export function submitAnswer(answer: string) {
+  init();
+
+  socket!.emit('answer', answer);
+}
+
+export function on(event: string, callback: (...args: any[]) => void) {
+  init();
+
   socket.on(event, callback);
 }

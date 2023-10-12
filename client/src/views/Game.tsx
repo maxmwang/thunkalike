@@ -7,7 +7,7 @@ import GameInfo from '../components/GameInfo';
 import PlayerList from '../components/PlayerList';
 import Start from '../components/Start';
 import type { GameData } from '../const';
-import { GameModes, GamePhases } from '../const';
+import { GamePhases } from '../const';
 
 import '../styles/views/game.css';
 
@@ -28,10 +28,14 @@ function Game() {
       setGameData(data);
     });
 
-    on('roundStart', (data: GameData) => {
+    on('gameStart', (data: GameData) => {
       setGameData(data);
     });
-  }, []);
+
+    on('startPhase', (data: GameData) => {
+      setGameData(data);
+    });
+  });
 
   if (!gameData) {
     return (
@@ -55,7 +59,6 @@ function Game() {
                 mode={gameData.mode}
                 username={username}
                 players={gameData.players}
-                thePedestal={gameData.mode === GameModes.CLASSIC ? gameData.thePedestal : undefined}
               />
             </Grid>
           </Grid>
@@ -64,7 +67,7 @@ function Game() {
         <Divider orientation="vertical" />
 
         <Grid item xs>
-          {true
+          {gameData.phase === GamePhases.ONGOING
             ? <Board />
             : <Start username={username} host={gameData.host} />}
         </Grid>

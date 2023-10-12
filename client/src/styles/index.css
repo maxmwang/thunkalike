@@ -60,3 +60,9 @@ body {
 
   padding: 10px;
 }
+
+.MuiGrid-item {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}

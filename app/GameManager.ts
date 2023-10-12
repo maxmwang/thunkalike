@@ -28,6 +28,7 @@ class GameManager {
   }
 
   removeGame(code: string) {
+    this._games[code].end();
     delete this._games[code];
   }
 

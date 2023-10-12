@@ -1,10 +1,10 @@
 import type { Server, Socket } from 'socket.io';
-import stringSim from 'string-similarity';
 
-import type { GameOptions, RoundPhases } from './const';
-import { GamePhases } from './const';
+import type { GameOptions } from './const';
+import { GamePhases, RoundPhases } from './const';
 import type Player from './Player';
-import wordsFromFile from './util/words';
+import TimerManager from './Timer';
+import WordManager from './Word';
 
 abstract class Game {
   /**
@@ -25,7 +25,7 @@ abstract class Game {
   /**
    * The list of players.
    */
-  protected abstract _players: Player[];
+  protected abstract players: Player[];
 
   /**
    * List of names of players who are ready.
@@ -35,17 +35,11 @@ abstract class Game {
   /**
    * The list of spectators.
    */
-  protected abstract _spectators: Player[];
+  protected abstract spectators: Player[];
 
-  /**
-   * The Word.
-   */
-  word!: string;
+  timer: TimerManager;
 
-  /**
-   * The list of unused words.
-   */
-  protected _words!: string[];
+  wm: WordManager;
 
   /**
    * The current game phase.
@@ -60,13 +54,18 @@ abstract class Game {
   /**
    * Game options.
    */
-  options: GameOptions = { source: 'standard' };
+  options: GameOptions = { source: 'standard', timer: 5000, answerProximity: 0.9 };
 
   constructor(code: string, io: Server, protected removeGame: (code: string) => void) {
     this.code = code;
     this.broadcast = (event: string, ...args: any[]) => io.to(this.code).emit(event, ...args);
-
     this.removeGame = removeGame;
+
+    this.timer = new TimerManager((time: string) => {
+      this.broadcast('tick', time);
+      console.log(time);
+    });
+    this.wm = new WordManager(this.options.source, this.options.answerProximity);
   }
 
   /**
@@ -74,83 +73,95 @@ abstract class Game {
    */
   protected abstract newPlayer(username: string, socket: Socket): Player;
 
+  /**
+   * Adds a player to the game. If the game has already started,
+   * the player will be added as a spectator.
+   *
+   * Will broadcast a `playerJoin` event.
+   */
   addPlayer(username: string, socket: Socket) {
-    if (this.checkName(username)) {
+    if (this.usernameExists(username)) {
       return;
     }
 
     const newPlayer = this.newPlayer(username, socket);
     if (this.gamePhase !== GamePhases.LOBBY) {
-      this._spectators.push(newPlayer);
+      this.spectators.push(newPlayer);
     } else {
-      if (this._players.length === 0) {
+      if (this.players.length === 0) {
         this.host = newPlayer;
       }
-      this._players.push(newPlayer);
+      this.players.push(newPlayer);
     }
     this.broadcast('playerJoin', this.json());
   }
 
   removePlayer(player: Player) {
-    if (!this._players.some((p) => p === player)
-      && !this._spectators.some((p) => p === player)) {
+    if (!this.playerExists(player)) {
       return;
     }
 
-    this._players = this._players.filter((p) => p !== player);
-    this._spectators = this._spectators.filter((p) => p !== player);
+    this.players = this.players.filter((p) => p !== player);
+    this.spectators = this.spectators.filter((p) => p !== player);
     this.broadcast('playerLeave', this.json());
 
-    if (this._players.length === 0 && this._spectators.length === 0) {
+    if (this.players.length === 0 && this.spectators.length === 0) {
       this.removeGame(this.code);
     }
   }
 
   readyPlayer(player: Player) {
     this.playersReady.add(player.username);
-  }
 
-  abstract start(): void;
-
-  abstract end(): void;
-
-  protected roundStart() {
-    this.playersReady = new Set();
-
-    this._players.forEach((player) => {
-      player.answer = '';
-    });
-
-    this.broadcast('roundStart', this.json());
-  }
-
-  protected updateWord() {
-    if (this._words.length === 0) {
-      this._words = wordsFromFile(this.options.source);
+    if (this.allPlayersReady()) {
+      this.nextPhase();
     }
-    const index = Math.floor(Math.random() * this._words.length);
-    this.word = this._words[index];
-    this._words.splice(index, 1);
   }
 
-  protected loadWords() {
-    this._words = wordsFromFile(this.options.source);
+  allPlayersReady() {
+    return this.playersReady.size === this.players.length;
   }
 
-  protected answersMatch(w1: string, w2: string) {
-    w1 = w1.toLowerCase().trim();
-    w2 = w2.toLowerCase().trim();
+  unreadyAllPlayers() {
+    this.playersReady = new Set();
+  }
 
-    // Words are the same if they are 80% similar
-    return stringSim.compareTwoStrings(w1, w2) > 0.9;
+  /**
+   * Returns true if Player is in the game as a player or spectator.
+   */
+  protected playerExists(player: Player) {
+    return this.players.some((p) => p === player) || this.spectators.some((p) => p === player);
   }
 
   /**
    * Returns true if username is taken.
    */
-  checkName(username: string) {
-    return this._players.some((player) => player.username === username);
+  usernameExists(username: string) {
+    return this.players.some((player) => player.username === username);
   }
+
+  protected roundStart() {
+    // could check if all players ready, but this check is copmleted before function is called
+
+    this.roundPhase = RoundPhases.START_PHASE;
+    console.log(this.roundPhase);
+
+    this.players.forEach((player) => {
+      player.reset();
+    });
+
+    this.broadcast(this.roundPhase, this.json());
+
+    // go to next phase
+    this.nextPhase();
+  }
+
+  // should broadcast 'gameStart' event
+  abstract start(): void;
+
+  abstract nextPhase(): void;
+
+  abstract end(): void;
 
   json() {
     return {
@@ -158,10 +169,12 @@ abstract class Game {
       mode: this.constructor.name,
       phase: this.gamePhase,
       host: this.host.username,
-      players: this._players.map((player) => ({ username: player.username })),
-      spectators: this._spectators.map((player) => ({ username: player.username })),
+      players: this.players.map((player) => player.json()),
+      spectators: this.spectators.map((player) => player.json()),
     };
   }
 }
 
 export default Game;
+
+// TODO: add timeout to kill games

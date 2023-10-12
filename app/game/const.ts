@@ -5,6 +5,7 @@ export enum GamePhases {
 }
 
 export enum RoundPhases {
+  START_PHASE = 'startPhase',
   PREVIEW_PHASE = 'previewPhase',
   ANSWER_PHASE = 'answerPhase',
   REVEAL_PHASE = 'revealPhase',
@@ -12,4 +13,6 @@ export enum RoundPhases {
 
 export interface GameOptions {
   source: string;
+  timer: number;
+  answerProximity: number;
 }

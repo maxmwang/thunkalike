@@ -1,24 +1,31 @@
 import ChairAltIcon from '@mui/icons-material/ChairAlt';
 import { Typography } from '@mui/material';
-import React from 'react';
+import React, { useEffect } from 'react';
 
+import { on } from '../api/socket';
 import type { GameData } from '../const';
 import { GameModes } from '../const';
-
 import '../styles/components/player-list.css';
 
 interface PlayerListProps {
   mode: GameData['mode'];
   username: string;
   players: GameData['players'];
-  thePedestal: string | undefined;
 }
 function PlayerList({
   mode,
   username,
   players,
-  thePedestal,
 }: PlayerListProps) {
+  const [thePedestal, setThePedestal] = React.useState('');
+
+  useEffect(() => {
+    on('previewPhase', (p: string) => {
+      console.log(p);
+      setThePedestal(p);
+    });
+  });
+
   return (
     <div id="player-list">
       {players.map((player) => (
@@ -40,6 +47,8 @@ function PlayerList({
   );
 
   // TODO: add spectator list
+  // TODO: show who has answered/readied up
+  // TODO: show who is host
 }
 
 export default PlayerList;

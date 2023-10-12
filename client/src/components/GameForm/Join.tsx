@@ -58,6 +58,7 @@ function Join({ joinGame, code }: JoinProps) {
     <Fade in>
       <form className="game-form" onSubmit={handleSubmit}>
         <TextField
+          autoFocus={code === undefined}
           id="code-input"
           variant="standard"
           label="Game Code"
@@ -68,6 +69,7 @@ function Join({ joinGame, code }: JoinProps) {
         />
 
         <TextField
+          autoFocus={code !== undefined}
           variant="standard"
           label="Username"
           value={formData.username}

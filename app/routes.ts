@@ -16,7 +16,7 @@ router.route('/checkName').get((req, res) => {
     return;
   }
 
-  if (game.checkName(username)) {
+  if (game.usernameExists(username)) {
     res.status(400).send({ error: { type: 'username', message: 'Username already taken' } });
     return;
   }

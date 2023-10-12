@@ -61,6 +61,7 @@ function Create({ joinGame }: CreateProps) {
         </div>
 
         <TextField
+          autoFocus
           variant="standard"
           label="Username"
           value={formData.username}
