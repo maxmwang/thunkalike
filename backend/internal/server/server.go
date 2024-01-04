@@ -16,19 +16,16 @@ import (
 
 func Start() {
 	r := chi.NewRouter()
-	htp := chi.NewRouter()
-	wsr := chi.NewRouter()
-	r.Mount("", htp)
-	r.Mount("", wsr)
 
 	gm := game.NewManager()
 
 	// TODO: custom logger
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
-	htp.Use(middleware.Timeout(5 * time.Second))
+	// TODO: timeout for http router
+	// r.Use(middleware.Timeout(5 * time.Second))
 
-	htp.Post("/game/create", func(w http.ResponseWriter, r *http.Request) {
+	r.Post("/game/create", func(w http.ResponseWriter, r *http.Request) {
 		body, err := parseJson[struct {
 			Username string `json:"username"`
 			Mode     string `json:"mode"`
@@ -55,7 +52,7 @@ func Start() {
 		}{code, body.Username})
 	})
 
-	htp.Post("/game/join", func(w http.ResponseWriter, r *http.Request) {
+	r.Post("/game/join", func(w http.ResponseWriter, r *http.Request) {
 		body, err := parseJson[struct {
 			Username string `json:"username"`
 			Code     string `json:"code"`
@@ -76,7 +73,7 @@ func Start() {
 		}{body.Code, body.Username})
 	})
 
-	wsr.Get("/game/ws", func(w http.ResponseWriter, r *http.Request) {
+	r.Get("/game/ws", func(w http.ResponseWriter, r *http.Request) {
 		conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{})
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -89,11 +86,13 @@ func Start() {
 			Username string `json:"username"`
 		}
 		if err = wsjson.Read(r.Context(), conn, &body); err != nil {
+			// TODO: cannot write after ws upgrade
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
 		if err = gm.ConnectPlayer(body.Code, body.Username, conn); err != nil {
+			// TODO: cannot write after ws upgrade
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -101,6 +100,10 @@ func Start() {
 		l := rate.NewLimiter(rate.Every(100*time.Millisecond), 10)
 		for {
 			if err = l.Wait(r.Context()); err != nil {
+				return
+			}
+
+			if err = gm.HandleConnection(r.Context(), conn); err != nil {
 				return
 			}
 		}
