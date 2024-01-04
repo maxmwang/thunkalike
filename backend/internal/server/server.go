@@ -1,80 +1,109 @@
 package server
 
 import (
-	"encoding/json"
 	"net/http"
+	"time"
 
 	"backend/internal/config"
 	"backend/internal/game"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/olahol/melody"
+	"golang.org/x/time/rate"
+	"nhooyr.io/websocket"
+	"nhooyr.io/websocket/wsjson"
 )
-
-var M *melody.Melody
-
-type SocketResponse struct {
-	Message string `json:"message"`
-	Body    string `json:"body"`
-}
 
 func Start() {
 	r := chi.NewRouter()
-	M = melody.New()
+	htp := chi.NewRouter()
+	wsr := chi.NewRouter()
+	r.Mount("", htp)
+	r.Mount("", wsr)
+
 	gm := game.NewManager()
 
+	// TODO: custom logger
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
+	htp.Use(middleware.Timeout(5 * time.Second))
 
-	r.Post("/game/create", func(w http.ResponseWriter, r *http.Request) {
-		var b struct {
+	htp.Post("/game/create", func(w http.ResponseWriter, r *http.Request) {
+		body, err := parseJson[struct {
 			Username string `json:"username"`
 			Mode     string `json:"mode"`
-		}
-		err := json.NewDecoder(r.Body).Decode(&b)
+		}](r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		switch b.Mode {
-		case "classic":
-			gm.CreateClassic()
-		case "duet":
-			gm.CreateDuet()
+		code, err := gm.Create(body.Mode)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
 		}
 
+		if err = gm.AddPlayer(code, body.Username); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		writeJson(w, struct {
+			Code     string `json:"code"`
+			Username string `json:"username"`
+		}{code, body.Username})
 	})
 
-	r.Post("/game/join", func(w http.ResponseWriter, r *http.Request) {
-		var b struct {
+	htp.Post("/game/join", func(w http.ResponseWriter, r *http.Request) {
+		body, err := parseJson[struct {
 			Username string `json:"username"`
 			Code     string `json:"code"`
-		}
-		err := json.NewDecoder(r.Body).Decode(&b)
+		}](r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		p := gm.AddPlayer(b.Code, b.Username)
-
-		err = M.HandleRequestWithKeys(w, r, map[string]interface{}{
-			"username": b.Username,
-			"code":     b.Code,
-			"player":   p,
-		})
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+		if err = gm.AddPlayer(body.Code, body.Username); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
-
 		}
 
+		writeJson(w, struct {
+			Code     string `json:"code"`
+			Username string `json:"username"`
+		}{body.Code, body.Username})
 	})
 
-	M.HandleMessage(func(s *melody.Session, msg []byte) {
-		s.Get("player").Session = s
+	wsr.Get("/game/ws", func(w http.ResponseWriter, r *http.Request) {
+		conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		defer conn.CloseNow()
+
+		var body struct {
+			Code     string `json:"code"`
+			Username string `json:"username"`
+		}
+		if err = wsjson.Read(r.Context(), conn, &body); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		if err = gm.ConnectPlayer(body.Code, body.Username, conn); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		l := rate.NewLimiter(rate.Every(100*time.Millisecond), 10)
+		for {
+			if err = l.Wait(r.Context()); err != nil {
+				return
+			}
+		}
 	})
 
 	err := http.ListenAndServe(":"+config.Env.Port, r)
