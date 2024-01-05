@@ -27,11 +27,11 @@ func NewManager() *Manager {
 func (gm *Manager) Create(mode string) (code string, err error) {
 	switch mode {
 	case "classic":
-		// TODO
+		gm.games[code] = newClassic(code)
 	case "duet":
 		// TODO
 	default:
-		err = errors.New("invalid mode")
+		err = errors.New("could not create game: mode=" + mode + " is invalid")
 	}
 	return
 }
@@ -40,7 +40,7 @@ func (gm *Manager) Create(mode string) (code string, err error) {
 func (gm *Manager) AddPlayer(code, username string) (err error) {
 	g, ok := gm.games[code]
 	if !ok {
-		return errors.New("could not add player: game with code " + code + " does not exist")
+		return errors.New("could not add player: game with code=" + code + " does not exist")
 	}
 
 	err = g.addPlayer(username)
@@ -51,7 +51,7 @@ func (gm *Manager) AddPlayer(code, username string) (err error) {
 func (gm *Manager) ConnectPlayer(code, username string, conn *websocket.Conn) (err error) {
 	g, ok := gm.games[code]
 	if !ok {
-		return errors.New("could not connect player: game with code " + code + " does not exist")
+		return errors.New("could not connect player: game with code=" + code + " does not exist")
 	}
 
 	err = g.connectPlayer(username, conn)
@@ -63,6 +63,7 @@ func (gm *Manager) HandleMessage(r *http.Request, conn *websocket.Conn) (err err
 		Code string `json:"code"`
 	}
 	if err = wsjson.Read(r.Context(), conn, &body); err != nil {
+		// TODO: custom error
 		return
 	}
 

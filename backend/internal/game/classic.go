@@ -12,6 +12,8 @@ import (
 type classic struct {
 	code    string
 	players map[string]*player
+	// TODO: spectators
+	// TODO: options
 }
 
 func newClassic(code string) *classic {
@@ -23,7 +25,7 @@ func newClassic(code string) *classic {
 
 func (g *classic) addPlayer(username string) (err error) {
 	if _, ok := g.players[username]; ok {
-		return errors.New("could not add player: player with username " + username + " already exists")
+		return errors.New("could not add player: player with username=" + username + " already exists")
 	}
 
 	g.players[username] = &player{
@@ -36,7 +38,7 @@ func (g *classic) addPlayer(username string) (err error) {
 func (g *classic) connectPlayer(username string, conn *websocket.Conn) (err error) {
 	p, ok := g.players[username]
 	if !ok {
-		return errors.New("could not connect player: player with username " + username + " does not exist")
+		return errors.New("could not connect player: player with username=" + username + " does not exist")
 	}
 
 	p.conn = conn
@@ -50,6 +52,7 @@ func (g *classic) handleConnection(r *http.Request, conn *websocket.Conn) (err e
 		Username string `json:"username"`
 	}
 	if err = wsjson.Read(r.Context(), conn, &body); err != nil {
+		// TODO: custom error
 		return
 	}
 	return

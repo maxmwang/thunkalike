@@ -86,13 +86,13 @@ func Start() {
 			Username string `json:"username"`
 		}
 		if err = wsjson.Read(r.Context(), conn, &body); err != nil {
-			// TODO: cannot write after ws upgrade
+			// TODO: ws error handling
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
 		if err = gm.ConnectPlayer(body.Code, body.Username, conn); err != nil {
-			// TODO: cannot write after ws upgrade
+			// TODO: ws error handling
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -104,6 +104,7 @@ func Start() {
 			}
 
 			if err = gm.HandleMessage(r, conn); err != nil {
+				// TODO: ws error handling
 				return
 			}
 		}
