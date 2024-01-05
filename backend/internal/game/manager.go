@@ -1,16 +1,17 @@
 package game
 
 import (
-	"context"
 	"errors"
+	"net/http"
 
 	"nhooyr.io/websocket"
 	"nhooyr.io/websocket/wsjson"
 )
 
 type game interface {
-	AddPlayer(username string) error
-	ConnectPlayer(username string, conn *websocket.Conn) error
+	addPlayer(username string) error
+	connectPlayer(username string, conn *websocket.Conn) error
+	handleConnection(r *http.Request, conn *websocket.Conn) error
 }
 
 type Manager struct {
@@ -42,8 +43,8 @@ func (gm *Manager) AddPlayer(code, username string) (err error) {
 		return errors.New("could not add player: game with code " + code + " does not exist")
 	}
 
-	err = g.AddPlayer(username)
-	return err
+	err = g.addPlayer(username)
+	return
 }
 
 // ConnectPlayer connects an existing player's websocket connection
@@ -53,21 +54,18 @@ func (gm *Manager) ConnectPlayer(code, username string, conn *websocket.Conn) (e
 		return errors.New("could not connect player: game with code " + code + " does not exist")
 	}
 
-	err = g.ConnectPlayer(username, conn)
-	return err
+	err = g.connectPlayer(username, conn)
+	return
 }
 
-func (gm *Manager) HandleConnection(ctx context.Context, conn *websocket.Conn) (err error) {
+func (gm *Manager) HandleMessage(r *http.Request, conn *websocket.Conn) (err error) {
 	var body struct {
-		Message string `json:"message"`
+		Code string `json:"code"`
 	}
-
-	if err = wsjson.Read(ctx, conn, &body); err != nil {
+	if err = wsjson.Read(r.Context(), conn, &body); err != nil {
 		return
 	}
 
-	// TODO: handle
-	err = wsjson.Write(ctx, conn, body)
-
+	err = gm.games[body.Code].handleConnection(r, conn)
 	return
 }

@@ -103,7 +103,7 @@ func Start() {
 				return
 			}
 
-			if err = gm.HandleConnection(r.Context(), conn); err != nil {
+			if err = gm.HandleMessage(r, conn); err != nil {
 				return
 			}
 		}
