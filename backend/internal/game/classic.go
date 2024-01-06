@@ -1,8 +1,8 @@
 package game
 
 import (
+	"encoding/json"
 	"errors"
-	"net/http"
 	"time"
 
 	"nhooyr.io/websocket"
@@ -50,13 +50,11 @@ func (g *classic) connectPlayer(username string, conn *websocket.Conn) (err erro
 	return
 }
 
-func (g *classic) handleConnection(r *http.Request, conn *websocket.Conn) (err error) {
-	// TODO
-	var body struct {
-		Message  string `json:"message"`
-		Username string `json:"username"`
+func (g *classic) handleMessage(message []byte) (err error) {
+	var m struct {
+		Message string `json:"message"`
 	}
-	if err = wsjson.Read(r.Context(), conn, &body); err != nil {
+	if err = json.Unmarshal(message, &m); err != nil {
 		// TODO: custom error
 		return
 	}

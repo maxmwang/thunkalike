@@ -103,7 +103,12 @@ func Start() {
 				return
 			}
 
-			if err = gm.HandleMessage(r, conn); err != nil {
+			_, m, err := conn.Read(r.Context())
+			if err != nil {
+				// TODO: ws error handling
+			}
+
+			if err = gm.HandleMessage(m); err != nil {
 				// TODO: ws error handling
 				return
 			}

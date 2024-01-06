@@ -1,18 +1,17 @@
 package game
 
 import (
+	"encoding/json"
 	"errors"
 	"math/rand"
-	"net/http"
 
 	"nhooyr.io/websocket"
-	"nhooyr.io/websocket/wsjson"
 )
 
 type game interface {
 	addPlayer(username string) error
 	connectPlayer(username string, conn *websocket.Conn) error
-	handleConnection(r *http.Request, conn *websocket.Conn) error
+	handleMessage(message []byte) error
 }
 
 type Manager struct {
@@ -63,15 +62,15 @@ func (gm *Manager) ConnectPlayer(code, username string, conn *websocket.Conn) (e
 	return
 }
 
-func (gm *Manager) HandleMessage(r *http.Request, conn *websocket.Conn) (err error) {
-	var body struct {
+func (gm *Manager) HandleMessage(message []byte) (err error) {
+	var m struct {
 		Code string `json:"code"`
 	}
-	if err = wsjson.Read(r.Context(), conn, &body); err != nil {
-		// TODO: custom error
+	if err = json.Unmarshal(message, &m); err != nil {
+		// TODO: ws error handling
 		return
 	}
 
-	err = gm.games[body.Code].handleConnection(r, conn)
+	err = gm.games[m.Code].handleMessage(message)
 	return
 }
