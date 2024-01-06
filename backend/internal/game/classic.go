@@ -23,25 +23,25 @@ type classic struct {
 
 func newClassic(code string) *classic {
 	return &classic{
-		code:    code,
-		players: make(map[string]*player),
+		Code:    code,
+		Players: make(map[string]*player),
 	}
 }
 
 func (g *classic) addPlayer(username string) (err error) {
-	if _, ok := g.players[username]; ok {
+	if _, ok := g.Players[username]; ok {
 		return errors.New("could not add player: player with username=" + username + " already exists")
 	}
 
-	g.players[username] = &player{
-		username: username,
-		isHost:   len(g.players) == 0,
+	g.Players[username] = &player{
+		Username: username,
+		IsHost:   len(g.Players) == 0,
 	}
 	return
 }
 
 func (g *classic) connectPlayer(username string, conn *websocket.Conn) (err error) {
-	p, ok := g.players[username]
+	p, ok := g.Players[username]
 	if !ok {
 		return errors.New("could not connect player: player with username=" + username + " does not exist")
 	}
