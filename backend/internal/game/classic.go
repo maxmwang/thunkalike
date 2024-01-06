@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"nhooyr.io/websocket"
-	"nhooyr.io/websocket/wsjson"
 )
 
 // TODO: add concurrency safety
