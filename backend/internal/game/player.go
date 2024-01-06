@@ -5,11 +5,11 @@ import (
 )
 
 type player struct {
-	username string
-	isHost   bool
+	Username string `json:"username"`
+	IsHost   bool   `json:"isHost"`
 
-	score  int
-	answer string
+	Score  int    `json:"score"`
+	Answer string `json:"answer"`
 
 	conn *websocket.Conn
 }

@@ -3,6 +3,7 @@ package game
 import (
 	"errors"
 	"net/http"
+	"time"
 
 	"nhooyr.io/websocket"
 	"nhooyr.io/websocket/wsjson"
@@ -10,10 +11,14 @@ import (
 
 // TODO: add concurrency safety
 type classic struct {
-	code    string
-	players map[string]*player
+	Code    string             `json:"code"`
+	Players map[string]*player `json:"players"`
 	// TODO: spectators
 	// TODO: options
+
+	ticker *time.Ticker
+	phase  phase
+	word   string
 }
 
 func newClassic(code string) *classic {

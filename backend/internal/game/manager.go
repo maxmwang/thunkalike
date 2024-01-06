@@ -2,6 +2,7 @@ package game
 
 import (
 	"errors"
+	"math/rand"
 	"net/http"
 
 	"nhooyr.io/websocket"
@@ -25,6 +26,10 @@ func NewManager() *Manager {
 }
 
 func (gm *Manager) Create(mode string) (code string, err error) {
+	for i := 0; i < 4; i++ {
+		code += string(rune(rand.Intn(26) + 65))
+	}
+
 	switch mode {
 	case "classic":
 		gm.games[code] = newClassic(code)
