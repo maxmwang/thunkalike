@@ -2,8 +2,8 @@ package game
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
-	"time"
 
 	"nhooyr.io/websocket"
 	"nhooyr.io/websocket/wsjson"
@@ -23,9 +23,9 @@ type classic struct {
 	// TODO: spectators
 	// TODO: options
 
-	ticker *time.Ticker
-	phase  phase
-	word   string
+	phase    phase
+	word     string
+	pedestal string
 
 	started bool
 	ch      chan playerMessage
@@ -58,6 +58,7 @@ func (g *classic) connectPlayer(username string, conn *websocket.Conn) (err erro
 	p.conn = conn
 
 	err = g.broadcast("join", *p)
+	// TODO: write to conn game state
 	return
 }
 
@@ -104,22 +105,86 @@ func (g *classic) start() {
 			switch g.phase.now {
 			case waitingPhase:
 				switch m.Message {
+				case "ready":
+					var body struct {
+						Username string `json:"username"`
+					}
+					if err := json.Unmarshal(m.Body, &body); err != nil {
+						m.errCh <- err
+						continue
+					}
+
+					g.Players[body.Username].IsReady = true
+					if err := g.broadcast("ready", body); err != nil {
+						m.errCh <- err
+						continue
+					}
+
+					for _, p := range g.Players {
+						if !p.IsReady {
+							continue
+						}
+					}
+					g.phase.next()
+					// TODO: choose and broadcast Pedestal
+				default:
+					m.errCh <- errors.New("could not handle message: message=" + m.Message + " is invalid during phase=" + g.phase.String())
 				}
+
 			case previewPhase:
 				switch m.Message {
-
+				default:
+					m.errCh <- errors.New("could not handle message: message=" + m.Message + " is invalid during phase=" + g.phase.String())
 				}
+
 			case answerPhase:
 				switch m.Message {
+				case "answer":
+					var body struct {
+						Username string `json:"username"`
+						Answer   string `json:"answer"`
+					}
+					if err := json.Unmarshal(m.Body, &body); err != nil {
+						m.errCh <- err
+						continue
+					}
 
+					g.Players[body.Username].Answer = body.Answer
+				default:
+					m.errCh <- errors.New("could not handle message: message=" + m.Message + " is invalid during phase=" + g.phase.String())
 				}
+
 			case revealPhase:
 				switch m.Message {
+				case "next":
+					var body struct {
+						Username string `json:"username"`
+					}
+					if err := json.Unmarshal(m.Body, &body); err != nil {
+						m.errCh <- err
+						continue
+					}
 
+					if !g.Players[body.Username].IsHost {
+						m.errCh <- errors.New("could not handle message: player with username=" + body.Username + " is not the host")
+						continue
+					}
+					g.phase.next()
+				default:
+					m.errCh <- errors.New("could not handle message: message=" + m.Message + " is invalid during phase=" + g.phase.String())
 				}
 			}
-		case <-g.ticker.C:
-
+		case <-g.phase.ticker.C:
+			switch g.phase.now {
+			case previewPhase:
+				g.phase.next()
+				// TODO: generate and broadcast Word
+			case answerPhase:
+				g.phase.next()
+				// TODO: calculate and broadcast Scores, Answers
+			default:
+				continue
+			}
 		}
 	}
 	g.phase.next()

@@ -1,5 +1,9 @@
 package game
 
+import (
+	"time"
+)
+
 const (
 	waitingPhase = iota
 	previewPhase
@@ -8,11 +12,16 @@ const (
 )
 
 type phase struct {
-	now uint8
+	now    uint8
+	ticker *time.Ticker
 }
 
 func (p *phase) next() {
 	p.now = (p.now + 1) % 4
+
+	if p.now == previewPhase {
+		p.ticker = time.NewTicker(5 * time.Second)
+	}
 }
 
 func (p *phase) String() string {
