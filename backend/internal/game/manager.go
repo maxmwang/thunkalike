@@ -11,7 +11,7 @@ import (
 type game interface {
 	addPlayer(username string) error
 	connectPlayer(username string, conn *websocket.Conn) error
-	handleMessage(message []byte) error
+	handleMessage(message string, body []byte) error
 }
 
 type Manager struct {
@@ -62,15 +62,16 @@ func (gm *Manager) ConnectPlayer(code, username string, conn *websocket.Conn) (e
 	return
 }
 
-func (gm *Manager) HandleMessage(message []byte) (err error) {
-	var m struct {
-		Code string `json:"code"`
+func (gm *Manager) HandleMessage(body []byte) (err error) {
+	var b struct {
+		Code    string `json:"code"`
+		Message string `json:"message"`
 	}
-	if err = json.Unmarshal(message, &m); err != nil {
+	if err = json.Unmarshal(body, &b); err != nil {
 		// TODO: ws error handling
 		return
 	}
 
-	err = gm.games[m.Code].handleMessage(message)
+	err = gm.games[b.Code].handleMessage(b.Message, body)
 	return
 }
