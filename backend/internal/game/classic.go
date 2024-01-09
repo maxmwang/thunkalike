@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"math/rand"
 
 	"nhooyr.io/websocket"
 	"nhooyr.io/websocket/wsjson"
@@ -28,7 +29,7 @@ type classic struct {
 	pedestal string
 
 	started bool
-	ch      chan playerMessage
+	c       chan playerMessage
 }
 
 func newClassic(code string) *classic {
@@ -71,7 +72,7 @@ func (g *classic) handleMessage(message string, body []byte) (err error) {
 		errCh: make(chan error),
 	}
 
-	g.ch <- m
+	g.c <- m
 	err = <-m.errCh
 
 	return
@@ -101,7 +102,7 @@ func (g *classic) start() {
 
 	for {
 		select {
-		case m := <-g.ch:
+		case m := <-g.c:
 			switch g.phase.now {
 			case waitingPhase:
 				switch m.Message {
@@ -120,13 +121,26 @@ func (g *classic) start() {
 						continue
 					}
 
+					// next phase if all players are ready
 					for _, p := range g.Players {
 						if !p.IsReady {
 							continue
 						}
 					}
 					g.phase.next()
-					// TODO: choose and broadcast Pedestal
+
+					// choose random pedestal then broadcast
+					playerUsernames := make([]string, 0, len(g.Players))
+					for username := range g.Players {
+						playerUsernames = append(playerUsernames, username)
+					}
+					g.pedestal = playerUsernames[rand.Intn(len(playerUsernames))]
+					if err := g.broadcast(g.phase.String(), g.pedestal); err != nil {
+						m.errCh <- err
+						continue
+					}
+
+					m.errCh <- nil
 				default:
 					m.errCh <- errors.New("could not handle message: message=" + m.Message + " is invalid during phase=" + g.phase.String())
 				}
@@ -150,6 +164,8 @@ func (g *classic) start() {
 					}
 
 					g.Players[body.Username].Answer = body.Answer
+
+					m.errCh <- nil
 				default:
 					m.errCh <- errors.New("could not handle message: message=" + m.Message + " is invalid during phase=" + g.phase.String())
 				}
@@ -170,6 +186,8 @@ func (g *classic) start() {
 						continue
 					}
 					g.phase.next()
+
+					m.errCh <- nil
 				default:
 					m.errCh <- errors.New("could not handle message: message=" + m.Message + " is invalid during phase=" + g.phase.String())
 				}
@@ -187,6 +205,4 @@ func (g *classic) start() {
 			}
 		}
 	}
-	g.phase.next()
-
 }
