@@ -14,6 +14,8 @@ const (
 type phase struct {
 	now    uint8
 	ticker *time.Ticker
+
+	c chan uint8
 }
 
 func (p *phase) next() {

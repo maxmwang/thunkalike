@@ -25,6 +25,7 @@ type classic struct {
 	// TODO: options
 
 	phase    phase
+	words    []string
 	word     string
 	pedestal string
 
@@ -196,7 +197,10 @@ func (g *classic) start() {
 			switch g.phase.now {
 			case previewPhase:
 				g.phase.next()
-				// TODO: generate and broadcast Word
+				g.word = g.words[rand.Intn(len(g.words))]
+				if err := g.broadcast(g.phase.String(), g.word); err != nil {
+					// TODO: log
+				}
 			case answerPhase:
 				g.phase.next()
 				// TODO: calculate and broadcast Scores, Answers
