@@ -5,7 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"math/rand"
+	"time"
 
+	"github.com/adrg/strutil"
+	"github.com/adrg/strutil/metrics"
 	"nhooyr.io/websocket"
 	"nhooyr.io/websocket/wsjson"
 )
@@ -17,14 +20,15 @@ type playerMessage struct {
 	errCh chan error
 }
 
-// TODO: add concurrency safety
 type classic struct {
 	Code    string             `json:"code"`
 	Players map[string]*player `json:"players"`
 	// TODO: spectators
 	// TODO: options
 
-	phase    phase
+	phase  phase
+	ticker *time.Ticker
+	// TODO: better words management
 	words    []string
 	word     string
 	pedestal string
@@ -193,7 +197,7 @@ func (g *classic) start() {
 					m.errCh <- errors.New("could not handle message: message=" + m.Message + " is invalid during phase=" + g.phase.String())
 				}
 			}
-		case <-g.phase.ticker.C:
+		case <-g.ticker.C:
 			switch g.phase.now {
 			case previewPhase:
 				g.phase.next()
@@ -203,7 +207,26 @@ func (g *classic) start() {
 				}
 			case answerPhase:
 				g.phase.next()
-				// TODO: calculate and broadcast Scores, Answers
+
+				matches := 0
+				// TODO: add metric to options
+				m := metrics.NewHamming()
+				for _, p := range g.Players {
+					if p.Username == g.pedestal {
+						continue
+					}
+
+					// TODO: add string proximity to options
+					if strutil.Similarity(p.Answer, g.Players[g.pedestal].Answer, m) > 0.8 {
+						p.Score += 10
+						matches++
+					}
+				}
+				g.Players[g.pedestal].Score += max((matches/len(g.Players))*10, 5)
+
+				if err := g.broadcast(g.phase.String(), g.Players); err != nil {
+					// TODO: log
+				}
 			default:
 				continue
 			}
