@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"time"
 
-	"backend/internal/config"
 	"backend/internal/game"
 
 	"github.com/go-chi/chi/v5"
@@ -14,7 +13,7 @@ import (
 	"nhooyr.io/websocket/wsjson"
 )
 
-func Start() {
+func New() http.Handler {
 	r := chi.NewRouter()
 
 	gm := game.NewManager()
@@ -115,8 +114,5 @@ func Start() {
 		}
 	})
 
-	err := http.ListenAndServe(":"+config.Env.Port, r)
-	if err != nil {
-		panic(err)
-	}
+	return r
 }
