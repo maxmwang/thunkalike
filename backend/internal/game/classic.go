@@ -63,8 +63,7 @@ func (g *classic) connectPlayer(username string, conn *websocket.Conn) (err erro
 	}
 	p.conn = conn
 
-	err = g.broadcast("join", *p)
-	// TODO: write to conn game state
+	err = g.broadcast("join", *g)
 	return
 }
 
@@ -90,12 +89,15 @@ func (g *classic) broadcast(message string, body any) (err error) {
 	}{message, body}
 
 	for _, p := range g.Players {
+		if p.conn == nil {
+			continue
+		}
 		if err = wsjson.Write(context.Background(), p.conn, res); err != nil {
 			// TODO: handle error
 		}
 	}
 
-	return
+	return nil
 }
 
 func (g *classic) start() {
