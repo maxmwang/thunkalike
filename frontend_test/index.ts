@@ -1,38 +1,52 @@
-// ide bug?:
-import { create } from 'node:domain';
-
 import type { ConsolaInstance } from 'consola';
-import { consola } from 'consola';
+import { Consola, consola } from 'consola';
 import fetch from 'node-fetch';
 import WebSocket from 'ws';
 
-async function newWS(code: string, i: number) {
-  type WS = WebSocket & { l: ConsolaInstance };
+class WS {
+  code: string;
 
-  const ws = new WebSocket('ws://localhost:5001/game/ws') as WS;
-  ws.l = consola.withTag(`[${code} ${i}]`);
+  i: number;
 
-  ws.addEventListener('open', () => {
-    ws.l.info('Connected');
-  });
+  l: ConsolaInstance;
 
-  ws.addEventListener('close', () => {
-    ws.l.info('Closed');
-  });
+  ws = new WebSocket('ws://localhost:5001/game/ws');
 
-  ws.onmessage = (data) => {
-    ws.l.info('Received', data.data);
-  };
+  constructor(code: string, i: number) {
+    this.code = code;
+    this.i = i;
+    this.l = consola.withTag(`[${code} ${i}]`);
 
-  return new Promise<WS>((resolve) => {
-    if (ws.readyState === WebSocket.OPEN) {
-      resolve(ws);
-    } else {
-      ws.addEventListener('open', () => {
+    this.ws.addEventListener('open', () => {
+      this.l.info('Connected');
+    });
+
+    this.ws.addEventListener('close', () => {
+      this.l.info('Closed');
+    });
+
+    this.ws.addEventListener('message', (data) => {
+      this.l.info('Raw data.data:', data.data);
+    });
+  }
+
+  static async new(code: string, i: number) {
+    const ws = new WS(code, i);
+
+    return new Promise<WS>((resolve) => {
+      if (ws.ws.readyState === WebSocket.OPEN) {
         resolve(ws);
-      });
-    }
-  });
+      } else {
+        ws.ws.addEventListener('open', () => {
+          resolve(ws);
+        });
+      }
+    });
+  }
+
+  send(message: string, body: any) {
+    this.ws.send(JSON.stringify({ message, body }));
+  }
 }
 
 async function newHost(i: number) {
@@ -53,10 +67,10 @@ async function newHost(i: number) {
   const j0 = await res.json();
   const { code } = j0;
 
-  const ws = await newWS(code, i);
-  ws.send(JSON.stringify({ username, code }));
+  const ws = await WS.new(code, i);
+  ws.ws.send(JSON.stringify({ username, code }));
 
-  return [ws, code];
+  return { ws, code };
 }
 
 async function newPlayer(i: number, code: string) {
@@ -74,8 +88,8 @@ async function newPlayer(i: number, code: string) {
     throw new Error(`Failed to join game: ${await res.json()}`);
   }
 
-  const ws = await newWS(code, i);
-  ws.send(JSON.stringify({ username, code }));
+  const ws = await WS.new(code, i);
+  ws.ws.send(JSON.stringify({ username, code }));
 
   return ws;
 }
@@ -85,12 +99,14 @@ async function main() {
   const NUM_PLAYERS = 3;
 
   for (let i = 0; i < NUM_HOSTS; i++) {
-    const [hostWS, code] = await newHost(i);
+    const { ws: hostWS, code } = await newHost(i);
     const playerWSs = [];
 
     for (let j = 1; j < NUM_PLAYERS; j++) {
       playerWSs.push(await newPlayer(j, code));
     }
+
+    hostWS.send('ready', {});
   }
 }
 
