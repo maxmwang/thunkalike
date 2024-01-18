@@ -24,6 +24,10 @@ func New() http.Handler {
 	// TODO: timeout for http router
 	// r.Use(middleware.Timeout(5 * time.Second))
 
+	r.Get("/dump", func(w http.ResponseWriter, r *http.Request) {
+		writeJson(w, gm)
+	})
+
 	r.Post("/game/create", func(w http.ResponseWriter, r *http.Request) {
 		body, err := parseJson[struct {
 			Username string `json:"username"`

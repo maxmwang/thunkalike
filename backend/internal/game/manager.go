@@ -14,9 +14,11 @@ type game interface {
 	handleMessage(message string, body []byte) error
 }
 
-type Manager struct {
+type manager struct {
 	games map[string]game
 }
+
+type Manager manager
 
 func NewManager() *Manager {
 	return &Manager{
@@ -74,4 +76,8 @@ func (gm *Manager) HandleMessage(body []byte) (err error) {
 
 	err = gm.games[b.Code].handleMessage(b.Message, body)
 	return
+}
+
+func (gm *Manager) MarshalJSON() ([]byte, error) {
+	return json.Marshal(gm.games)
 }
