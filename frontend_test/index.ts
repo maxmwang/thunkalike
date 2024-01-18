@@ -6,8 +6,10 @@ import { consola } from 'consola';
 import fetch from 'node-fetch';
 import WebSocket from 'ws';
 
-function newWS(code: string, i: number) {
-  const ws = new WebSocket('ws://localhost:5001/game/ws') as WebSocket & { l : ConsolaInstance };
+async function newWS(code: string, i: number) {
+  type WS = WebSocket & { l: ConsolaInstance };
+
+  const ws = new WebSocket('ws://localhost:5001/game/ws') as WS;
   ws.l = consola.withTag(`[${code} ${i}]`);
 
   ws.addEventListener('open', () => {
@@ -19,14 +21,18 @@ function newWS(code: string, i: number) {
   });
 
   ws.onmessage = (data) => {
-    ws.l.info('Received', data);
+    ws.l.info('Received', data.data);
   };
 
-  ws.on('message', (data) => {
-    ws.l.info('Received', data);
+  return new Promise<WS>((resolve) => {
+    if (ws.readyState === WebSocket.OPEN) {
+      resolve(ws);
+    } else {
+      ws.addEventListener('open', () => {
+        resolve(ws);
+      });
+    }
   });
-
-  return ws;
 }
 
 async function newHost(i: number) {
@@ -47,7 +53,8 @@ async function newHost(i: number) {
   const j0 = await res.json();
   const { code } = j0;
 
-  const ws = newWS(code, i);
+  const ws = await newWS(code, i);
+  ws.send(JSON.stringify({ username, code }));
 
   return [ws, code];
 }
@@ -67,7 +74,10 @@ async function newPlayer(i: number, code: string) {
     throw new Error(`Failed to join game: ${await res.json()}`);
   }
 
-  return newWS(code, i);
+  const ws = await newWS(code, i);
+  ws.send(JSON.stringify({ username, code }));
+
+  return ws;
 }
 
 async function main() {
