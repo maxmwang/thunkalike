@@ -1,5 +1,5 @@
 import type { ConsolaInstance } from 'consola';
-import { Consola, consola } from 'consola';
+import { consola } from 'consola';
 import fetch from 'node-fetch';
 import WebSocket from 'ws';
 
@@ -7,6 +7,8 @@ class WS {
   code: string;
 
   i: number;
+
+  username: string;
 
   l: ConsolaInstance;
 
@@ -16,6 +18,7 @@ class WS {
     this.code = code;
     this.i = i;
     this.l = consola.withTag(`[${code} ${i}]`);
+    this.username = i === 0 ? `host${i}` : `player${i}`;
 
     this.ws.addEventListener('open', () => {
       this.l.info('Connected');
@@ -26,7 +29,7 @@ class WS {
     });
 
     this.ws.addEventListener('message', (data) => {
-      this.l.info('Raw data.data:', data.data);
+      this.l.info('Raw data.data:', JSON.stringify(JSON.parse(data.data as string), null, '  '));
     });
   }
 
@@ -44,8 +47,8 @@ class WS {
     });
   }
 
-  send(message: string, body: any) {
-    this.ws.send(JSON.stringify({ message, body }));
+  send(message: string, code: string, body: any) {
+    this.ws.send(JSON.stringify({ message, code, body }));
   }
 }
 
@@ -61,7 +64,7 @@ async function newHost(i: number) {
   });
 
   if (res.status !== 200) {
-    throw new Error(`Failed to join game: ${await res.json()}`);
+    throw new Error(`Failed to join game: ${JSON.stringify(await res.json())}`);
   }
 
   const j0 = await res.json();
@@ -106,7 +109,7 @@ async function main() {
       playerWSs.push(await newPlayer(j, code));
     }
 
-    hostWS.send('ready', {});
+    hostWS.send('ready', code, { username: hostWS.username });
   }
 }
 
