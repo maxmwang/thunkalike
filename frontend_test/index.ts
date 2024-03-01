@@ -30,6 +30,17 @@ class WS {
 
     this.ws.addEventListener('message', (data) => {
       this.l.info('Raw data.data:', JSON.stringify(JSON.parse(data.data as string), null, '  '));
+
+      const { message, body } = JSON.parse(data.data as string);
+      switch (message) {
+        case 'answer': {
+          this.ws.send(JSON.stringify({ message: 'answer', code, body: { username: this.username, answer: 'yes' } }));
+          break;
+        }
+        default: {
+          this.l.info('Unhandled message:', message);
+        }
+      }
     });
   }
 
@@ -99,7 +110,7 @@ async function newPlayer(i: number, code: string) {
 
 async function main() {
   const NUM_HOSTS = 1;
-  const NUM_PLAYERS = 3;
+  const NUM_PLAYERS = 2;
 
   for (let i = 0; i < NUM_HOSTS; i++) {
     const { ws: hostWS, code } = await newHost(i);

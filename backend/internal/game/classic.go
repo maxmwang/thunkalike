@@ -109,16 +109,12 @@ func (g *classic) handleMessage(message string, body json.RawMessage) (err error
 
 func (g *classic) broadcastMessage(message string, body any) (err error) {
 	m := gameMessage{message, body}
-	res, err := json.Marshal(m)
-	if err != nil {
-		return
-	}
 
 	for _, p := range g.Players {
 		if p.conn == nil {
 			continue
 		}
-		if err = wsjson.Write(context.Background(), p.conn, res); err != nil {
+		if err = wsjson.Write(context.Background(), p.conn, m); err != nil {
 			// TODO: handle error
 		}
 	}
