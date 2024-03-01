@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -57,8 +58,8 @@ func New() http.Handler {
 
 	r.Post("/game/join", func(w http.ResponseWriter, r *http.Request) {
 		body, err := parseJson[struct {
-			Username string `json:"username"`
 			Code     string `json:"code"`
+			Username string `json:"username"`
 		}](r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -113,6 +114,7 @@ func New() http.Handler {
 
 			if err = gm.HandleMessage(b); err != nil {
 				// TODO: ws error handling
+				fmt.Println(err)
 				return
 			}
 		}

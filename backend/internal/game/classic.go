@@ -13,11 +13,33 @@ import (
 	"nhooyr.io/websocket/wsjson"
 )
 
+/*
+ * A message received from a player, as perceived by the game. Note that
+ * although the player should send a code field, the game does not see
+ * as it should already be consumed by the server.
+ */
 type playerMessage struct {
-	Message string `json:"message"`
-	Body    []byte `json:"body"`
+	Message string          `json:"message"`
+	Body    json.RawMessage `json:"body"`
 
-	errCh chan error
+	errCh chan error /* error channel to return to the server */
+}
+
+func newPlayerMessage(message string, body json.RawMessage) playerMessage {
+	return playerMessage{
+		Message: message,
+		Body:    body,
+
+		errCh: make(chan error),
+	}
+}
+
+/*
+ * A message sent from the game to a player.
+ */
+type gameMessage struct {
+	Message string `json:"message"`
+	Body    any    `json:"body"`
 }
 
 type classic struct {
@@ -38,10 +60,19 @@ type classic struct {
 }
 
 func newClassic(code string) *classic {
-	return &classic{
+	g := &classic{
 		Code:    code,
 		Players: make(map[string]*player),
+
+		phase:  phase{now: waitingPhase},
+		ticker: time.NewTicker(5 * time.Second),
+		words:  []string{"apple", "banana", "cherry", "durian", "eggplant", "fig", "grape", "honeydew", "ice cream", "jackfruit", "kiwi", "lemon", "mango", "nectarine", "orange", "peach", "quince", "raspberry", "strawberry", "tomato", "ugli", "vanilla", "watermelon", "xigua", "yuzu", "zucchini"},
+
+		c: make(chan playerMessage),
 	}
+	go g.start()
+
+	return g
 }
 
 func (g *classic) addPlayer(username string) (err error) {
@@ -63,18 +94,12 @@ func (g *classic) connectPlayer(username string, conn *websocket.Conn) (err erro
 	}
 	p.conn = conn
 
-	err = g.broadcast("join", *g)
+	err = g.broadcastMessage("join", *g)
 	return
 }
 
-func (g *classic) handleMessage(message string, body []byte) (err error) {
-	m := playerMessage{
-		Message: message,
-		Body:    body,
-
-		// errCh is used to send errors back to the player
-		errCh: make(chan error),
-	}
+func (g *classic) handleMessage(message string, body json.RawMessage) (err error) {
+	m := newPlayerMessage(message, body)
 
 	g.c <- m
 	err = <-m.errCh
@@ -82,11 +107,12 @@ func (g *classic) handleMessage(message string, body []byte) (err error) {
 	return
 }
 
-func (g *classic) broadcast(message string, body any) (err error) {
-	res := struct {
-		Message string `json:"message"`
-		Body    any    `json:"body"`
-	}{message, body}
+func (g *classic) broadcastMessage(message string, body any) (err error) {
+	m := gameMessage{message, body}
+	res, err := json.Marshal(m)
+	if err != nil {
+		return
+	}
 
 	for _, p := range g.Players {
 		if p.conn == nil {
@@ -122,8 +148,13 @@ func (g *classic) start() {
 						continue
 					}
 
+					if _, ok := g.Players[body.Username]; !ok {
+						m.errCh <- errors.New("could not handle message: player with username=" + body.Username + " does not exist")
+						continue
+					}
+
 					g.Players[body.Username].IsReady = true
-					if err := g.broadcast("ready", body); err != nil {
+					if err := g.broadcastMessage("ready", body); err != nil {
 						m.errCh <- err
 						continue
 					}
@@ -136,13 +167,13 @@ func (g *classic) start() {
 					}
 					g.phase.next()
 
-					// choose random pedestal then broadcast
+					// choose random pedestal then broadcastMessage
 					playerUsernames := make([]string, 0, len(g.Players))
 					for username := range g.Players {
 						playerUsernames = append(playerUsernames, username)
 					}
 					g.pedestal = playerUsernames[rand.Intn(len(playerUsernames))]
-					if err := g.broadcast(g.phase.String(), g.pedestal); err != nil {
+					if err := g.broadcastMessage(g.phase.String(), g.pedestal); err != nil {
 						m.errCh <- err
 						continue
 					}
@@ -204,7 +235,7 @@ func (g *classic) start() {
 			case previewPhase:
 				g.phase.next()
 				g.word = g.words[rand.Intn(len(g.words))]
-				if err := g.broadcast(g.phase.String(), g.word); err != nil {
+				if err := g.broadcastMessage(g.phase.String(), g.word); err != nil {
 					// TODO: log
 				}
 			case answerPhase:
@@ -226,7 +257,7 @@ func (g *classic) start() {
 				}
 				g.Players[g.pedestal].Score += max((matches/len(g.Players))*10, 5)
 
-				if err := g.broadcast(g.phase.String(), g.Players); err != nil {
+				if err := g.broadcastMessage(g.phase.String(), g.Players); err != nil {
 					// TODO: log
 				}
 			default:
