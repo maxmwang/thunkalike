@@ -17,7 +17,6 @@ type game interface {
 type manager struct {
 	games map[string]game
 }
-
 type Manager manager
 
 func NewManager() *Manager {
@@ -26,7 +25,7 @@ func NewManager() *Manager {
 	}
 }
 
-func (gm *Manager) Create(mode string) (code string, err error) {
+func (gm *Manager) Create(mode string) (code string) {
 	for i := 0; i < 4; i++ {
 		code += string(rune(rand.Intn(26) + 65))
 	}
@@ -37,20 +36,19 @@ func (gm *Manager) Create(mode string) (code string, err error) {
 	case "duet":
 		// TODO
 	default:
-		err = errors.New("could not create game: mode=" + mode + " is invalid")
 	}
-	return
+	return code
 }
 
 // AddPlayer adds a new player
 func (gm *Manager) AddPlayer(code, username string) (err error) {
 	g, ok := gm.games[code]
 	if !ok {
-		return errors.New("could not add player: game with code=" + code + " does not exist")
+		return errors.New("game with code=" + code + " does not exist")
 	}
 
 	err = g.addPlayer(username)
-	return
+	return err
 }
 
 // ConnectPlayer connects an existing player's websocket connection
@@ -61,7 +59,7 @@ func (gm *Manager) ConnectPlayer(code, username string, conn *websocket.Conn) (e
 	}
 
 	err = g.connectPlayer(username, conn)
-	return
+	return err
 }
 
 func (gm *Manager) HandleMessage(body []byte) (err error) {
@@ -72,7 +70,7 @@ func (gm *Manager) HandleMessage(body []byte) (err error) {
 	}
 	if err = json.Unmarshal(body, &b); err != nil {
 		// TODO: ws error handling
-		return
+		return err
 	}
 
 	g, ok := gm.games[b.Code]
@@ -81,7 +79,7 @@ func (gm *Manager) HandleMessage(body []byte) (err error) {
 	}
 
 	err = g.handleMessage(b.Message, b.Body)
-	return
+	return err
 }
 
 func (gm *Manager) MarshalJSON() ([]byte, error) {

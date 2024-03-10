@@ -4,36 +4,66 @@ import (
 	"encoding/json"
 )
 
+type validator interface {
+	validate() reqErrors
+}
+type reqErrors map[string]string
+
 // HTTP types
 type (
-	ErrorResponse struct {
-		Errors map[string]string `json:"errors"`
+	errorResponse struct {
+		Errors reqErrors `json:"errors"`
 	}
 
-	CreateRequest struct {
+	createRequest struct {
 		Username string `json:"username"`
 		Mode     string `json:"mode"`
 	}
-	CreateResponse struct {
+	createResponse struct {
 		Code string `json:"code"`
 	}
 
-	JoinRequest struct {
+	joinRequest struct {
 		Username string `json:"username"`
 		Code     string `json:"code"`
 	}
-	JoinResponse struct{}
+	joinResponse struct{}
 )
 
 // Websocket types
 type (
-	PlayerMessage struct {
+	playerMessage struct {
 		Code    string          `json:"code"`
 		Message string          `json:"message"`
 		Body    json.RawMessage `json:"body"`
 	}
-	ServerMessage struct {
+	serverMessage struct {
 		Message string `json:"message"`
 		Body    any    `json:"body"`
 	}
 )
+
+func (r createRequest) validate() reqErrors {
+	errs := reqErrors{}
+	if r.Username == "" {
+		errs["username"] = "username is required"
+	}
+	if r.Mode == "" {
+		errs["mode"] = "mode is required"
+	}
+	if r.Mode != "classic" && r.Mode != "duet" {
+		errs["mode"] = "mode must be 'classic' or 'duet'"
+	}
+	return errs
+}
+
+func (r joinRequest) validate() reqErrors {
+	errs := reqErrors{}
+	if r.Username == "" {
+		errs["username"] = "username is required"
+	}
+	if r.Code == "" {
+		errs["code"] = "code is required"
+	}
+	return errs
+}

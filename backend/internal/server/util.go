@@ -2,31 +2,29 @@ package server
 
 import (
 	"encoding/json"
-	"io"
+	"fmt"
 	"net/http"
 )
 
-func parseJson[T any](r *http.Request) (b T, err error) {
-	raw, err := io.ReadAll(r.Body)
-	if err != nil {
-		return
+func readJson[T validator](r *http.Request) (b T, reqErr reqErrors, err error) {
+	if err = json.NewDecoder(r.Body).Decode(&b); err == nil {
+		// TODO: log decode errors
+		return b, reqErr, fmt.Errorf("decode json: %w", err)
 	}
 
-	err = json.Unmarshal(raw, &b)
+	if reqErr = b.validate(); len(reqErr) > 0 {
+		return b, reqErr, nil
+	}
 
-	return b, nil
+	return b, nil, nil
 }
 
-func writeJson(w http.ResponseWriter, data any) {
-	res, err := json.Marshal(data)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
+func writeJson(w http.ResponseWriter, data any, status int) (err error) {
 	w.Header().Set("Content-Type", "application/json")
-	if _, err = w.Write(res); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	w.WriteHeader(status)
+	if err = json.NewEncoder(w).Encode(data); err != nil {
+		// TODO: log encode errors
+		return fmt.Errorf("encode json: %w", err)
 	}
+	return nil
 }
