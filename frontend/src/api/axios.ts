@@ -1,30 +1,32 @@
 import axios from 'axios';
 
-import type { CreateResponse, ErrorResponse, JoinResponse } from './api';
+import type {
+  CreateRequest,
+  CreateResponse,
+  ErrorResponse,
+  JoinRequest,
+  JoinResponse,
+} from './api';
 
 axios.defaults.withCredentials = true;
 axios.defaults.validateStatus = () => true;
 axios.defaults.baseURL = '/api';
 
-type Response<T> = {
+export type Response<T> = {
   error: boolean;
+  status: number;
   response: T | ErrorResponse;
 };
 
-export async function gameCreate(
-  mode: string,
-  username: string,
-): Promise<Response<CreateResponse>> {
-  const res = await axios.post('/game/create', { mode, username });
-
-  return { error: res.status !== 200, response: res.data };
+async function post(path: string, body: any): Promise<Response<any>> {
+  const res = await axios.post(path, body);
+  return { error: res.status !== 200, status: res.status, response: res.data };
 }
 
-export async function gameJoin(
-  code: string,
-  username: string,
-): Promise<Response<JoinResponse>> {
-  const res = await axios.post('/game/join', { code, username });
+export async function gameCreate(req: CreateRequest): Promise<Response<CreateResponse>> {
+  return post('/game/create', req);
+}
 
-  return { error: res.status !== 200, response: res.data };
+export async function gameJoin(req: JoinRequest): Promise<Response<JoinResponse>> {
+  return post('/game/join', req);
 }

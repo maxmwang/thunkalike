@@ -6,39 +6,45 @@ import {
 } from '@mui/material';
 import React, { useState } from 'react';
 
+import capitalize from './form';
+import type { CreateResponse, ErrorResponse } from '../../api/api';
 import { gameCreate } from '../../api/axios';
 
-interface CreateProps {
-  joinGame: (code: string, username: string) => void;
-}
-function Create({ joinGame }: CreateProps) {
-  const [formData, setFormData] = useState({
+type CreateProps = {
+  connect: (code: string, username: string) => void;
+};
+function Create({ connect }: CreateProps) {
+  const [form, setForm] = useState({
     username: '',
     usernameError: '',
+
     mode: 'classic',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.username) {
-      setFormData({ ...formData, usernameError: 'Please enter a username' });
+    if (!form.username) {
+      setForm({ ...form, usernameError: 'Username is required' });
       return;
     }
 
-    setFormData({ ...formData, usernameError: '' });
+    setForm({ ...form, usernameError: '' });
 
-    const data = await gameCreate(formData.mode, formData.username);
+    const data = await gameCreate({ username: form.username, mode: form.mode });
     if (data.error) {
-      setFormData({ ...formData, usernameError: data.error.message });
+      setForm({
+        ...form,
+        usernameError: capitalize((data.response as ErrorResponse).errors.username),
+      });
       return;
     }
 
-    joinGame(data.code!, formData.username);
+    connect((data.response as CreateResponse).code, form.username);
   };
 
   const handleInput = (type: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [type]: e.target.value, [`${type}Error`]: '' });
+    setForm({ ...form, [type]: e.target.value, [`${type}Error`]: '' });
   };
 
   return (
@@ -46,15 +52,15 @@ function Create({ joinGame }: CreateProps) {
       <form className="game-form" onSubmit={handleSubmit}>
         <div className="game-mode">
           <RadioButton
-            selected={formData.mode === 'classic'}
-            setMode={() => setFormData({ ...formData, mode: 'classic' })}
+            selected={form.mode === 'classic'}
+            setMode={() => setForm({ ...form, mode: 'classic' })}
           >
             <Typography>Classic</Typography>
           </RadioButton>
 
           <RadioButton
-            selected={formData.mode === 'duet'}
-            setMode={() => setFormData({ ...formData, mode: 'duet' })}
+            selected={form.mode === 'duet'}
+            setMode={() => setForm({ ...form, mode: 'duet' })}
           >
             <Typography>Duet</Typography>
           </RadioButton>
@@ -64,9 +70,9 @@ function Create({ joinGame }: CreateProps) {
           autoFocus
           variant="standard"
           label="Username"
-          value={formData.username}
-          error={!!formData.usernameError}
-          helperText={formData.usernameError || ' '}
+          value={form.username}
+          error={!!form.usernameError}
+          helperText={form.usernameError || ' '}
           onChange={handleInput('username')}
         />
 

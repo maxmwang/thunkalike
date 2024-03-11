@@ -1,20 +1,23 @@
 import { Typography } from '@mui/material';
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 
-import { on } from '../api/socket';
+import SocketContext from '../api/socket';
+import type { GameData } from '../const';
 
 import '../styles/components/word-display.css';
 
 function WordDisplay() {
   const [word, setWord] = useState('');
 
+  const { on } = useContext(SocketContext);
+
   useEffect(() => {
-    on('startPhase', () => {
+    on('preview', () => {
       setWord('');
     });
 
-    on('answerPhase', (w: string) => {
-      setWord(w);
+    on('answer', (data: GameData) => {
+      setWord(data.word);
     });
   });
 

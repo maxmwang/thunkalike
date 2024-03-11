@@ -4,29 +4,36 @@ export enum GameModes {
 }
 
 export enum GamePhases {
-  LOBBY,
-  ONGOING,
-  OVER,
+  WAITING = 'waiting',
+  PREVIEW = 'preview',
+  ANSWER = 'answer',
+  REVEAL = 'reveal',
 }
 
-export enum AppViews {
-  LANDING,
-  GAME,
+interface AbstractPlayerData {
+  username: string;
+  isHost: boolean;
+  isReady: boolean;
+  answer: string;
 }
+export interface ClassicPlayerData extends AbstractPlayerData {
+  score: number;
+}
+export interface DuetPlayerData extends AbstractPlayerData {}
 
 interface AbstractGameData {
   code: string;
   mode: string;
-  phase: GamePhases;
+  word: string;
   host: string;
-  players: [{ username: string }];
+  phase: GamePhases;
+  players: AbstractPlayerData[];
 }
-
 export interface ClassicGameData extends AbstractGameData {
-  players: [{ username: string, score: number }];
-  thePedestal: string;
+  players: ClassicPlayerData[];
+  pedestal: string;
 }
-
 export interface DuetGameData extends AbstractGameData {}
 
+export type PlayerData = ClassicPlayerData | DuetPlayerData;
 export type GameData = ClassicGameData | DuetGameData;

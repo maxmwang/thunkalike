@@ -12,14 +12,15 @@ enum LandingTabs {
 }
 
 interface LandingProps {
-  joinGame(gameCode: string, username: string): void;
-  code: string | undefined;
+  urlCode: string | undefined;
+
+  connect(code: string, username: string): void;
 }
-function Landing({ joinGame, code }: LandingProps) {
+function Landing({ connect, urlCode }: LandingProps) {
   const [tab, setTab] = useState<LandingTabs>(LandingTabs.CREATE);
 
   useEffect(() => {
-    if (code) {
+    if (urlCode) {
       setTab(LandingTabs.JOIN);
     }
   }, []);
@@ -31,8 +32,8 @@ function Landing({ joinGame, code }: LandingProps) {
         <Tab label="Join" />
       </Tabs>
 
-      {tab === LandingTabs.CREATE ? <Create joinGame={joinGame} /> : null}
-      {tab === LandingTabs.JOIN ? <Join joinGame={joinGame} code={code} /> : null}
+      {tab === LandingTabs.CREATE ? <Create connect={connect} /> : null}
+      {tab === LandingTabs.JOIN ? <Join connect={connect} urlCode={urlCode} /> : null}
     </div>
   );
 }

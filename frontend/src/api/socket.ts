@@ -1,48 +1,44 @@
-import type { Socket } from 'socket.io-client';
-import io from 'socket.io-client';
+import { createContext } from 'react';
 
-let socket: Socket;
+import type { PlayerMessage, ServerMessage } from './api';
 
-export function init() {
-  if (socket) {
-    return;
+export class Socket {
+  private ws!: WebSocket;
+
+  private events: { [key: string]: ((...args: any[]) => void)[] } = {};
+
+  connect(code: string, username: string) {
+    this.ws = new WebSocket('ws://localhost:5001/api/game/ws');
+
+    this.ws.addEventListener('message', (data) => {
+      const message: ServerMessage = JSON.parse(data.data as string);
+      if (this.events[message.message]) {
+        this.events[message.message].forEach((callback) => {
+          callback(message.body);
+        });
+      }
+    });
+    // TODO: wait for socket to open before sending message
+    this.ws.send(JSON.stringify({ code, username }));
   }
 
-  socket = io();
+  send(message: PlayerMessage) {
+    if (this.ws.readyState !== WebSocket.OPEN) {
+      return;
+    }
+    this.ws.send(JSON.stringify(message));
+  }
+
+  on(event: string, callback: (...args: any[]) => void) {
+    if (this.ws.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    if (!this.events[event]) {
+      this.events[event] = [];
+    }
+    this.events[event].push(callback);
+  }
 }
 
-export function joinGame(code: string, username: string) {
-  init();
-
-  socket!.emit('joinGame', code, username);
-}
-
-export function startGame() {
-  init();
-
-  socket!.emit('startGame');
-}
-
-export function endGame() {
-  init();
-
-  socket!.emit('endGame');
-}
-
-export function ready() {
-  init();
-
-  socket!.emit('ready');
-}
-
-export function submitAnswer(answer: string) {
-  init();
-
-  socket!.emit('answer', answer);
-}
-
-export function on(event: string, callback: (...args: any[]) => void) {
-  init();
-
-  socket.on(event, callback);
-}
+export default createContext(new Socket());

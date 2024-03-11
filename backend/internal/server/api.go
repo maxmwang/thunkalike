@@ -32,6 +32,11 @@ type (
 
 // Websocket types
 type (
+	// initial joinMessage does not follow the playerMessage struct
+	joinMessage struct {
+		Username string `json:"username"`
+		Code     string `json:"code"`
+	}
 	playerMessage struct {
 		Code    string          `json:"code"`
 		Message string          `json:"message"`

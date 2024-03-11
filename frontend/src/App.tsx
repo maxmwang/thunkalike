@@ -1,31 +1,38 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
-import { joinGame as socketJoinGame } from './api/socket';
-import { AppViews as Views } from './const';
+import SocketContext, { Socket } from './api/socket';
 import Game from './views/Game';
 import Landing from './views/Landing';
 
+enum Views {
+  LANDING,
+  GAME,
+}
+
 function App() {
   const [view, setView] = useState<Views>(Views.LANDING);
+  const socket = useMemo(() => new Socket(), []);
 
-  const { code } = useParams();
+  const { urlCode } = useParams();
   const navigate = useNavigate();
 
-  const joinGame = (gameCode: string, username: string) => {
-    socketJoinGame(gameCode, username);
+  const connect = (code: string, username: string) => {
+    socket.connect(code, username);
     setView(Views.GAME);
-    navigate(`/${gameCode}`);
+    navigate(`/${code}`);
   };
 
   const views: { [key in Views]: JSX.Element } = {
-    [Views.LANDING]: <Landing joinGame={joinGame} code={code} />,
+    [Views.LANDING]: <Landing connect={connect} urlCode={urlCode} />,
     [Views.GAME]: <Game />,
   };
 
   return (
     <div id="app">
-      {views[view]}
+      <SocketContext.Provider value={socket}>
+        {views[view]}
+      </SocketContext.Provider>
     </div>
   );
 }

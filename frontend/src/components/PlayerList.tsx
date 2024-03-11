@@ -1,8 +1,8 @@
 import ChairAltIcon from '@mui/icons-material/ChairAlt';
 import { Typography } from '@mui/material';
-import React, { useEffect } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 
-import { on } from '../api/socket';
+import SocketContext from '../api/socket';
 import type { GameData } from '../const';
 import { GameModes } from '../const';
 import '../styles/components/player-list.css';
@@ -17,12 +17,16 @@ function PlayerList({
   username,
   players,
 }: PlayerListProps) {
-  const [thePedestal, setThePedestal] = React.useState('');
+  const [thePedestal, setThePedestal] = useState('');
+
+  const { on } = useContext(SocketContext);
 
   useEffect(() => {
-    on('previewPhase', (p: string) => {
-      console.log(p);
-      setThePedestal(p);
+    on('preview', (data: GameData) => {
+      if ('pedestal' in data) {
+        console.log(data.pedestal);
+        setThePedestal(data.pedestal);
+      }
     });
   });
 

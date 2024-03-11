@@ -1,12 +1,12 @@
 import { CircularProgress, Divider, Grid } from '@mui/material';
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 
-import { on } from '../api/socket';
+import SocketContext from '../api/socket';
 import Board from '../components/Board';
 import GameInfo from '../components/GameInfo';
 import PlayerList from '../components/PlayerList';
 import Start from '../components/Start';
-import type { GameData } from '../const';
+import type { GameData, PlayerData } from '../const';
 import { GamePhases } from '../const';
 
 import '../styles/views/game.css';
@@ -15,25 +15,27 @@ function Game() {
   const [username, setUsername] = useState('');
   const [gameData, setGameData] = useState<GameData>();
 
+  const { on } = useContext(SocketContext);
+
   useEffect(() => {
-    on('selfJoin', (u: string) => {
-      setUsername(u);
+    on('self', (body: PlayerData) => {
+      setUsername(body.username);
     });
 
-    on('playerJoin', (data: GameData) => {
-      setGameData(data);
+    on('join', (body: GameData) => {
+      setGameData({ ...gameData, ...body });
     });
 
-    on('playerLeave', (data: GameData) => {
-      setGameData(data);
+    on('ready', (body: GameData) => {
+      setGameData({ ...gameData, ...body });
     });
 
-    on('gameStart', (data: GameData) => {
-      setGameData(data);
+    on('answer', (body: GameData) => {
+      setGameData({ ...gameData, ...body });
     });
 
-    on('startPhase', (data: GameData) => {
-      setGameData(data);
+    on('reveal', (body: GameData) => {
+      setGameData({ ...gameData, ...body });
     });
   });
 
@@ -67,9 +69,9 @@ function Game() {
         <Divider orientation="vertical" />
 
         <Grid item xs>
-          {gameData.phase === GamePhases.ONGOING
-            ? <Board />
-            : <Start username={username} host={gameData.host} />}
+          {gameData.phase === GamePhases.WAITING
+            ? <Start username={username} host={gameData.host} />
+            : <Board />}
         </Grid>
       </Grid>
     </div>

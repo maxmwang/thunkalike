@@ -5,20 +5,18 @@ import React, {
   useState,
 } from 'react';
 
-import { on } from '../api/socket';
-
 import '../styles/components/timer.css';
 
 function Timer() {
   const [timeLeft, setTimeLeft] = useState('0');
 
   useEffect(() => {
-    on('tick', (t: string) => {
-      setTimeLeft(t);
-    });
-    on('startPhase', () => {
-      setTimeLeft('0');
-    });
+    // on('tick', (t: string) => {
+    //   setTimeLeft(t);
+    // });
+    // on('startPhase', () => {
+    //   setTimeLeft('0');
+    // });
   });
 
   return (

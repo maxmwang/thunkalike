@@ -9,7 +9,7 @@ import (
 )
 
 type game interface {
-	addPlayer(username string) error
+	addPlayer(username string, isHost bool) error
 	connectPlayer(username string, conn *websocket.Conn) error
 	handleMessage(message string, body json.RawMessage) error
 }
@@ -41,13 +41,13 @@ func (gm *Manager) Create(mode string) (code string) {
 }
 
 // AddPlayer adds a new player
-func (gm *Manager) AddPlayer(code, username string) (err error) {
+func (gm *Manager) AddPlayer(code, username string, isHost bool) (err error) {
 	g, ok := gm.games[code]
 	if !ok {
 		return errors.New("game with code=" + code + " does not exist")
 	}
 
-	err = g.addPlayer(username)
+	err = g.addPlayer(username, isHost)
 	return err
 }
 

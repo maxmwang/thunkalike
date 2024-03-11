@@ -26,44 +26,44 @@ func New() http.Handler {
 	// r.Use(middleware.Timeout(5 * time.Second))
 
 	r.Get("/dev/dump", func(w http.ResponseWriter, r *http.Request) {
-		_ = writeJson(w, gm, http.StatusOK)
+		_ = encodeJson(w, gm, http.StatusOK)
 	})
 
 	r.Post("/api/game/create", func(w http.ResponseWriter, r *http.Request) {
-		body, reqErr, decodeErr := readJson[createRequest](r)
+		body, reqErr, decodeErr := decodeJson[createRequest](r)
 		if decodeErr != nil {
-			_ = writeJson(w, decodeErr.Error(), http.StatusInternalServerError)
+			_ = encodeJson(w, decodeErr.Error(), http.StatusInternalServerError)
 			return
 		}
 		if len(reqErr) > 0 {
-			_ = writeJson(w, errorResponse{reqErr}, http.StatusBadRequest)
+			_ = encodeJson(w, errorResponse{reqErr}, http.StatusBadRequest)
 			return
 		}
 
 		code := gm.Create(body.Mode)
-		_ = gm.AddPlayer(code, body.Username) // code is valid, so this should not error
+		_ = gm.AddPlayer(code, body.Username, true) // code is valid, so this should not error
 
-		_ = writeJson(w, createResponse{code}, http.StatusOK)
+		_ = encodeJson(w, createResponse{code}, http.StatusOK)
 	})
 
 	r.Post("/api/game/join", func(w http.ResponseWriter, r *http.Request) {
-		body, reqErr, decodeErr := readJson[joinRequest](r)
+		body, reqErr, decodeErr := decodeJson[joinRequest](r)
 		if decodeErr != nil {
-			_ = writeJson(w, decodeErr.Error(), http.StatusInternalServerError)
+			_ = encodeJson(w, decodeErr.Error(), http.StatusInternalServerError)
 			return
 		}
 		if len(reqErr) > 0 {
-			_ = writeJson(w, errorResponse{reqErr}, http.StatusBadRequest)
+			_ = encodeJson(w, errorResponse{reqErr}, http.StatusBadRequest)
 			return
 		}
 
-		if gameErr := gm.AddPlayer(body.Code, body.Username); gameErr != nil {
+		if gameErr := gm.AddPlayer(body.Code, body.Username, false); gameErr != nil {
 			reqErr = reqErrors{"code": gameErr.Error()}
-			_ = writeJson(w, errorResponse{reqErr}, http.StatusBadRequest)
+			_ = encodeJson(w, errorResponse{reqErr}, http.StatusBadRequest)
 			return
 		}
 
-		_ = writeJson(w, joinResponse{}, http.StatusOK)
+		_ = encodeJson(w, joinResponse{}, http.StatusOK)
 	})
 
 	r.Get("/api/game/ws", func(w http.ResponseWriter, r *http.Request) {
@@ -74,17 +74,14 @@ func New() http.Handler {
 		}
 		defer conn.CloseNow()
 
-		var body struct {
-			Code     string `json:"code"`
-			Username string `json:"username"`
-		}
-		if err = wsjson.Read(r.Context(), conn, &body); err != nil {
+		var msg joinMessage
+		if err = wsjson.Read(r.Context(), conn, &msg); err != nil {
 			// TODO: ws error handling
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		if err = gm.ConnectPlayer(body.Code, body.Username, conn); err != nil {
+		if err = gm.ConnectPlayer(msg.Code, msg.Username, conn); err != nil {
 			// TODO: ws error handling
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -96,12 +93,12 @@ func New() http.Handler {
 				return
 			}
 
-			_, b, err := conn.Read(r.Context())
+			_, msg, err := conn.Read(r.Context())
 			if err != nil {
 				// TODO: ws error handling
 			}
 
-			if err = gm.HandleMessage(b); err != nil {
+			if err = gm.HandleMessage(msg); err != nil {
 				// TODO: ws error handling
 				fmt.Println(err)
 				return
