@@ -66,8 +66,10 @@ func New() http.Handler {
 		_ = encodeJson(w, joinResponse{}, http.StatusOK)
 	})
 
-	r.Get("/api/game/ws", func(w http.ResponseWriter, r *http.Request) {
-		conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{})
+	r.Get("/ws", func(w http.ResponseWriter, r *http.Request) {
+		conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
+			OriginPatterns: []string{"127.0.0.1:5173"},
+		})
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return

@@ -17,8 +17,8 @@ function App() {
   const { urlCode } = useParams();
   const navigate = useNavigate();
 
-  const connect = (code: string, username: string) => {
-    socket.connect(code, username);
+  const connect = async (code: string, username: string) => {
+    await socket.connect(code, username);
     setView(Views.GAME);
     navigate(`/${code}`);
   };

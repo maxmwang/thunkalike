@@ -19,10 +19,10 @@ function PlayerList({
 }: PlayerListProps) {
   const [thePedestal, setThePedestal] = useState('');
 
-  const { on } = useContext(SocketContext);
+  const socket = useContext(SocketContext);
 
   useEffect(() => {
-    on('preview', (data: GameData) => {
+    socket.on('preview', (data: GameData) => {
       if ('pedestal' in data) {
         console.log(data.pedestal);
         setThePedestal(data.pedestal);

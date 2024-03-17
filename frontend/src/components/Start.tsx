@@ -9,12 +9,12 @@ interface StartProps {
   host: string;
 }
 function Start({ username, host }: StartProps) {
-  const { send } = useContext(SocketContext);
+  const socket = useContext(SocketContext);
 
   if (username === host) {
     return (
       <div id="start">
-        <Button variant="contained" onClick={() => { send({ code: 'TODO', message: 'TODO', body: {} }); }}>Start</Button>
+        <Button variant="contained" onClick={() => { socket.send({ code: 'TODO', message: 'TODO', body: {} }); }}>Start</Button>
       </div>
     );
   }

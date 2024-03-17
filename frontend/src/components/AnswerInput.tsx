@@ -1,6 +1,6 @@
 import SendIcon from '@mui/icons-material/Send';
 import { TextField, Typography } from '@mui/material';
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 
 import SocketContext from '../api/socket';
 
@@ -18,10 +18,10 @@ function AnswerInput() {
   const [view, setView] = useState<Views>(Views.READY);
   const [answer, setAnswer] = useState('');
 
-  const ws = React.useContext(SocketContext);
+  const socket = useContext(SocketContext);
 
   const handleReady = () => {
-    ws.send({ code: 'TODO', message: 'ready', body: {} });
+    socket.send({ code: 'TODO', message: 'ready', body: {} });
     setView(Views.READIED);
   };
 
@@ -32,16 +32,16 @@ function AnswerInput() {
       return;
     }
 
-    ws.send({ code: 'TODO', message: 'answer', body: { answer } });
+    socket.send({ code: 'TODO', message: 'answer', body: { answer } });
     setView(Views.WAITING);
   };
 
   useEffect(() => {
-    ws.on('preview', () => {
+    socket.on('preview', () => {
       setView(Views.PREVIEW);
     });
 
-    ws.on('answer', () => {
+    socket.on('answer', () => {
       setAnswer('');
       setView(Views.INPUT);
     });

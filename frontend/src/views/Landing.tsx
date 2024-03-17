@@ -14,7 +14,7 @@ enum LandingTabs {
 interface LandingProps {
   urlCode: string | undefined;
 
-  connect(code: string, username: string): void;
+  connect(code: string, username: string): Promise<void>;
 }
 function Landing({ connect, urlCode }: LandingProps) {
   const [tab, setTab] = useState<LandingTabs>(LandingTabs.CREATE);

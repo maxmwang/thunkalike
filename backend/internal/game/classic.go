@@ -54,6 +54,7 @@ type classic struct {
 	words    []string
 	word     string
 	pedestal string
+	Host     string `json:"host"`
 
 	started bool
 	c       chan playerMessage
@@ -62,6 +63,7 @@ type classic struct {
 func newClassic(code string) *classic {
 	g := &classic{
 		Code:    code,
+		Mode:    "classic",
 		Players: make(map[string]*player),
 
 		phase:  phase{now: waitingPhase},
@@ -75,11 +77,17 @@ func newClassic(code string) *classic {
 	return g
 }
 
-func (g *classic) addPlayer(username string) (err error) {
+func (g *classic) addPlayer(username string, isHost bool) (err error) {
 	if _, ok := g.Players[username]; ok {
 		return errors.New("could not add player: player with username=" + username + " already exists")
 	}
 
+	if isHost {
+		if g.Host != "" {
+			return errors.New("could not add host player: host already exists")
+		}
+		g.Host = username
+	}
 	g.Players[username] = &player{
 		Username: username,
 		IsHost:   len(g.Players) == 0,
@@ -94,6 +102,7 @@ func (g *classic) connectPlayer(username string, conn *websocket.Conn) (err erro
 	}
 	p.conn = conn
 
+	err = wsjson.Write(context.Background(), p.conn, gameMessage{"self", *p})
 	err = g.broadcastMessage("join", *g)
 	return
 }
@@ -215,7 +224,7 @@ func (g *classic) start() {
 						continue
 					}
 
-					if !g.Players[body.Username].IsHost {
+					if g.Host != body.Username {
 						m.errCh <- errors.New("could not handle message: player with username=" + body.Username + " is not the host")
 						continue
 					}

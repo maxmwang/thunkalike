@@ -9,14 +9,14 @@ import '../styles/components/word-display.css';
 function WordDisplay() {
   const [word, setWord] = useState('');
 
-  const { on } = useContext(SocketContext);
+  const socket = useContext(SocketContext);
 
   useEffect(() => {
-    on('preview', () => {
+    socket.on('preview', () => {
       setWord('');
     });
 
-    on('answer', (data: GameData) => {
+    socket.on('answer', (data: GameData) => {
       setWord(data.word);
     });
   });

@@ -11,7 +11,7 @@ import type { CreateResponse, ErrorResponse } from '../../api/api';
 import { gameCreate } from '../../api/axios';
 
 type CreateProps = {
-  connect: (code: string, username: string) => void;
+  connect: (code: string, username: string) => Promise<void>;
 };
 function Create({ connect }: CreateProps) {
   const [form, setForm] = useState({
@@ -40,7 +40,7 @@ function Create({ connect }: CreateProps) {
       return;
     }
 
-    connect((data.response as CreateResponse).code, form.username);
+    await connect((data.response as CreateResponse).code, form.username);
   };
 
   const handleInput = (type: string) => (e: React.ChangeEvent<HTMLInputElement>) => {

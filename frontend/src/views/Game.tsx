@@ -15,26 +15,26 @@ function Game() {
   const [username, setUsername] = useState('');
   const [gameData, setGameData] = useState<GameData>();
 
-  const { on } = useContext(SocketContext);
+  const socket = useContext(SocketContext);
 
   useEffect(() => {
-    on('self', (body: PlayerData) => {
+    socket.on('self', (body: PlayerData) => {
       setUsername(body.username);
     });
 
-    on('join', (body: GameData) => {
+    socket.on('join', (body: GameData) => {
       setGameData({ ...gameData, ...body });
     });
 
-    on('ready', (body: GameData) => {
+    socket.on('ready', (body: GameData) => {
       setGameData({ ...gameData, ...body });
     });
 
-    on('answer', (body: GameData) => {
+    socket.on('answer', (body: GameData) => {
       setGameData({ ...gameData, ...body });
     });
 
-    on('reveal', (body: GameData) => {
+    socket.on('reveal', (body: GameData) => {
       setGameData({ ...gameData, ...body });
     });
   });

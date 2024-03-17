@@ -8,7 +8,7 @@ import { gameJoin } from '../../api/axios';
 type JoinProps = {
   urlCode: string | undefined;
 
-  connect(code: string, username: string): void;
+  connect(code: string, username: string): Promise<void>;
 };
 function Join({ connect, urlCode }: JoinProps) {
   const [form, setForm] = useState({
@@ -43,7 +43,7 @@ function Join({ connect, urlCode }: JoinProps) {
       });
     }
 
-    connect(form.code, form.username);
+    await wconnect(form.code, form.username);
   };
 
   const handleInput = (type: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
