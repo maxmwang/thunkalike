@@ -44,6 +44,7 @@ type gameMessage struct {
 
 type classic struct {
 	Code    string             `json:"code"`
+	Mode    string             `json:"mode"`
 	Players map[string]*player `json:"players"`
 	// TODO: spectators
 	// TODO: options
