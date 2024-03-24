@@ -1,13 +1,12 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
-)
 
-type validator interface {
-	validate() reqErrors
-}
-type reqErrors map[string]string
+	"nhooyr.io/websocket"
+	"nhooyr.io/websocket/wsjson"
+)
 
 // HTTP types
 type (
@@ -30,23 +29,10 @@ type (
 	joinResponse struct{}
 )
 
-// Websocket types
-type (
-	// initial joinMessage does not follow the playerMessage struct
-	joinMessage struct {
-		Username string `json:"username"`
-		Code     string `json:"code"`
-	}
-	playerMessage struct {
-		Code    string          `json:"code"`
-		Message string          `json:"message"`
-		Body    json.RawMessage `json:"body"`
-	}
-	serverMessage struct {
-		Message string `json:"message"`
-		Body    any    `json:"body"`
-	}
-)
+type validator interface {
+	validate() reqErrors
+}
+type reqErrors map[string]string
 
 func (r createRequest) validate() reqErrors {
 	errs := reqErrors{}
@@ -71,4 +57,32 @@ func (r joinRequest) validate() reqErrors {
 		errs["code"] = "code is required"
 	}
 	return errs
+}
+
+// Websocket types
+type (
+	// initial joinMessage does not follow the playerMessage struct
+	joinMessage struct {
+		Username string `json:"username"`
+		Code     string `json:"code"`
+	}
+	playerMessage struct {
+		Code    string          `json:"code"`
+		Message string          `json:"message"`
+		Body    json.RawMessage `json:"body"`
+	}
+	serverMessage struct {
+		Message string `json:"message"`
+		Body    any    `json:"body"`
+	}
+)
+
+type conn websocket.Conn
+
+// SendJson constructs a serverMessage with the given message and body,
+// then uses wsjson.Write to write the message to the websocket connection.
+func (c *conn) SendJson(message string, body any) error {
+	m := serverMessage{message, body}
+
+	return wsjson.Write(context.Background(), (*websocket.Conn)(c), m)
 }

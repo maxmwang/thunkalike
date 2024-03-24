@@ -40,8 +40,8 @@ func New() http.Handler {
 			return
 		}
 
-		code := gm.Create(body.Mode)
-		_ = gm.AddPlayer(code, body.Username, true) // code is valid, so this should not error
+		code := gm.Create(body.Mode, body.Username)
+		_ = gm.AddPlayer(code, body.Username) // code is valid, so this should not error
 
 		_ = encodeJson(w, createResponse{code}, http.StatusOK)
 	})
@@ -57,7 +57,7 @@ func New() http.Handler {
 			return
 		}
 
-		if gameErr := gm.AddPlayer(body.Code, body.Username, false); gameErr != nil {
+		if gameErr := gm.AddPlayer(body.Code, body.Username); gameErr != nil {
 			reqErr = reqErrors{"code": gameErr.Error()}
 			_ = encodeJson(w, errorResponse{reqErr}, http.StatusBadRequest)
 			return
@@ -67,23 +67,23 @@ func New() http.Handler {
 	})
 
 	r.Get("/ws", func(w http.ResponseWriter, r *http.Request) {
-		conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
+		c, err := websocket.Accept(w, r, &websocket.AcceptOptions{
 			OriginPatterns: []string{"127.0.0.1:5173"},
 		})
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		defer conn.CloseNow()
+		defer c.CloseNow()
 
 		var msg joinMessage
-		if err = wsjson.Read(r.Context(), conn, &msg); err != nil {
+		if err = wsjson.Read(r.Context(), c, &msg); err != nil {
 			// TODO: ws error handling
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		if err = gm.ConnectPlayer(msg.Code, msg.Username, conn); err != nil {
+		if err = gm.ConnectPlayer(msg.Code, msg.Username, (*conn)(c)); err != nil {
 			// TODO: ws error handling
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -95,13 +95,13 @@ func New() http.Handler {
 				return
 			}
 
-			_, msg, err := conn.Read(r.Context())
-			if err != nil {
-				// TODO: ws error handling
+			var msg playerMessage
+			if err = wsjson.Read(r.Context(), c, &msg); err != nil {
+				// TODO(ws_err): handle ws error
 			}
 
-			if err = gm.HandleMessage(msg); err != nil {
-				// TODO: ws error handling
+			if err = gm.HandleMessage((*conn)(c), msg.Code, msg.Message, msg.Body); err != nil {
+				// TODO(ws_err): handle ws error
 				fmt.Println(err)
 				return
 			}

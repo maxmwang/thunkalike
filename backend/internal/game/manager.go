@@ -4,20 +4,17 @@ import (
 	"encoding/json"
 	"errors"
 	"math/rand"
-
-	"nhooyr.io/websocket"
 )
 
 type game interface {
-	addPlayer(username string, isHost bool) error
-	connectPlayer(username string, conn *websocket.Conn) error
-	handleMessage(message string, body json.RawMessage) error
+	addPlayer(username string) error
+	connectPlayer(username string, con conn) error
+	handleMessage(con conn, message string, body json.RawMessage) error
 }
 
-type manager struct {
+type Manager struct {
 	games map[string]game
 }
-type Manager manager
 
 func NewManager() *Manager {
 	return &Manager{
@@ -25,14 +22,14 @@ func NewManager() *Manager {
 	}
 }
 
-func (gm *Manager) Create(mode string) (code string) {
+func (gm *Manager) Create(mode, host string) (code string) {
 	for i := 0; i < 4; i++ {
 		code += string(rune(rand.Intn(26) + 65))
 	}
 
 	switch mode {
 	case "classic":
-		gm.games[code] = newClassic(code)
+		gm.games[code] = newClassic(code, host)
 	case "duet":
 		// TODO
 	default:
@@ -41,18 +38,18 @@ func (gm *Manager) Create(mode string) (code string) {
 }
 
 // AddPlayer adds a new player
-func (gm *Manager) AddPlayer(code, username string, isHost bool) (err error) {
+func (gm *Manager) AddPlayer(code, username string) (err error) {
 	g, ok := gm.games[code]
 	if !ok {
 		return errors.New("game with code=" + code + " does not exist")
 	}
 
-	err = g.addPlayer(username, isHost)
+	err = g.addPlayer(username)
 	return err
 }
 
 // ConnectPlayer connects an existing player's websocket connection
-func (gm *Manager) ConnectPlayer(code, username string, conn *websocket.Conn) (err error) {
+func (gm *Manager) ConnectPlayer(code, username string, conn conn) (err error) {
 	g, ok := gm.games[code]
 	if !ok {
 		return errors.New("could not connect player: game with code=" + code + " does not exist")
@@ -62,23 +59,13 @@ func (gm *Manager) ConnectPlayer(code, username string, conn *websocket.Conn) (e
 	return err
 }
 
-func (gm *Manager) HandleMessage(body []byte) (err error) {
-	var b struct {
-		Code    string          `json:"code"`
-		Message string          `json:"message"`
-		Body    json.RawMessage `json:"body"`
-	}
-	if err = json.Unmarshal(body, &b); err != nil {
-		// TODO: ws error handling
-		return err
-	}
-
-	g, ok := gm.games[b.Code]
+func (gm *Manager) HandleMessage(con conn, code, message string, body json.RawMessage) (err error) {
+	g, ok := gm.games[code]
 	if !ok {
-		return errors.New("could not handle message: game with code=" + b.Code + " does not exist")
+		return errors.New("could not handle message: game with code=" + code + " does not exist")
 	}
 
-	err = g.handleMessage(b.Message, b.Body)
+	err = g.handleMessage(con, message, body)
 	return err
 }
 

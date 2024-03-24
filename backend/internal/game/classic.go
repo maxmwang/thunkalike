@@ -1,274 +1,275 @@
 package game
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"math/rand"
+	"sync"
 	"time"
 
 	"github.com/adrg/strutil"
-	"github.com/adrg/strutil/metrics"
-	"nhooyr.io/websocket"
-	"nhooyr.io/websocket/wsjson"
 )
 
-/*
- * A message received from a player, as perceived by the game. Note that
- * although the player should send a code field, the game does not see
- * as it should already be consumed by the server.
- */
-type playerMessage struct {
-	Message string          `json:"message"`
-	Body    json.RawMessage `json:"body"`
+type classicPlayer struct {
+	basePlayer
 
-	errCh chan error /* error channel to return to the server */
+	// Score is the current score of the player.
+	//
+	// In classic mode, a player's score at the end of a round depends on if
+	// the player was the pedestal or not. If the player was the pedestal,
+	// the player's score is calculated by:
+	// 	score += max(n / (N - 1) * 10, 5)
+	// where n is the number of players who guessed the player's answer and N
+	// is the total number of players. If the player was not the pedestal and
+	// the player's answer is similar to the pedestal's, then the player's
+	// score is calculated by:
+	// 	score += 10
+	Score int `json:"score"`
 }
 
-func newPlayerMessage(message string, body json.RawMessage) playerMessage {
-	return playerMessage{
-		Message: message,
-		Body:    body,
+// classicMessage is the struct sent from the classicPlayer's websocket
+// connection goroutine to the game goroutine.
+type classicMessage struct {
+	baseMessage
 
-		errCh: make(chan error),
-	}
-}
-
-/*
- * A message sent from the game to a player.
- */
-type gameMessage struct {
-	Message string `json:"message"`
-	Body    any    `json:"body"`
+	p *classicPlayer
 }
 
 type classic struct {
-	Code    string             `json:"code"`
-	Mode    string             `json:"mode"`
-	Players map[string]*player `json:"players"`
-	// TODO: spectators
-	// TODO: options
+	base
 
-	phase  phase
-	ticker *time.Ticker
-	// TODO: better words management
-	words    []string
-	word     string
-	pedestal string
-	Host     string `json:"host"`
+	// Players is the list of players in the game. Spectators are not included
+	// in this list.
+	Players []classicPlayer `json:"players"`
 
-	started bool
-	c       chan playerMessage
+	// playersByUsername is a map of player usernames to players. Used to
+	// ensure unique usernames in the game and to identify players by
+	// usernames. Usernames must be unique across players and spectators.
+	playersByUsername map[string]*classicPlayer
+
+	// playersByConn is a map of player connections to players. Used to
+	// identify players by their websocket connection.
+	playersByConn map[conn]*classicPlayer
+
+	// Spectators is the list of spectators in the game.
+	Spectators []classicPlayer `json:"spectators"`
+
+	// spectatorsByUsername is a map of spectator usernames to spectators.
+	// Used to ensure unique usernames in the game and to identify
+	// spectators by usernames. Usernames must be unique across players
+	// and spectators.
+	spectatorsByUsername map[string]*classicPlayer
+
+	// spectatorsByConn is a map of spectator connections to spectators. Used
+	// to identify spectators by their websocket connection.
+	spectatorsByConn map[conn]*classicPlayer
+
+	// mu is the mutex that protects the Players and Spectators slices related
+	// maps. A lock is necessary to ensure usernames are unique.
+	mu sync.RWMutex
+
+	// Pedestal is the username of the current pedestal player. Empty if the
+	// game is not started or if the game is in the waiting phase.
+	Pedestal string `json:"pedestal"`
+
+	// c is the channel that receives player messages. The channel is used to
+	// communicate between the game goroutine and the players websocket
+	// connection goroutines.
+	c chan classicMessage
 }
 
-func newClassic(code string) *classic {
-	g := &classic{
-		Code:    code,
-		Mode:    "classic",
-		Players: make(map[string]*player),
+func newClassic(code, host string) *classic {
+	g := classic{
+		base: newBase(code, "classic", host),
 
-		phase:  phase{now: waitingPhase},
-		ticker: time.NewTicker(5 * time.Second),
-		words:  []string{"apple", "banana", "cherry", "durian", "eggplant", "fig", "grape", "honeydew", "ice cream", "jackfruit", "kiwi", "lemon", "mango", "nectarine", "orange", "peach", "quince", "raspberry", "strawberry", "tomato", "ugli", "vanilla", "watermelon", "xigua", "yuzu", "zucchini"},
+		Players:           make([]classicPlayer, 0),
+		playersByUsername: make(map[string]*classicPlayer),
+		playersByConn:     make(map[conn]*classicPlayer),
 
-		c: make(chan playerMessage),
+		Spectators:           make([]classicPlayer, 0),
+		spectatorsByUsername: make(map[string]*classicPlayer),
+		spectatorsByConn:     make(map[conn]*classicPlayer),
 	}
 	go g.start()
 
-	return g
+	return &g
 }
 
-func (g *classic) addPlayer(username string, isHost bool) (err error) {
-	if _, ok := g.Players[username]; ok {
+// addPlayer attempts to add a new player to the game. If the username is
+// already in the game, an error is returned. Must be called before
+// connectPlayer.
+func (g *classic) addPlayer(username string) error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	_, inPlayers := g.playersByUsername[username]
+	_, inSpectators := g.spectatorsByUsername[username]
+	if inPlayers || inSpectators {
 		return errors.New("could not add player: player with username=" + username + " already exists")
 	}
 
-	if isHost {
-		if g.Host != "" {
-			return errors.New("could not add host player: host already exists")
-		}
-		g.Host = username
-	}
-	g.Players[username] = &player{
-		Username: username,
-		IsHost:   len(g.Players) == 0,
-	}
-	return
+	// Add player to players slice. It is safe to use the last index because
+	// we have obtained the mutex.
+	g.Players = append(g.Players, classicPlayer{
+		basePlayer: newBasePlayer(username),
+	})
+	g.playersByUsername[username] = &g.Players[len(g.Players)-1]
+
+	return nil
 }
 
-func (g *classic) connectPlayer(username string, conn *websocket.Conn) (err error) {
-	p, ok := g.Players[username]
+// connectPlayer attaches a websocket connection to a player. If the player
+// does not exist, an error is returned. Must be called after addPlayer.
+func (g *classic) connectPlayer(username string, con conn) error {
+	g.mu.Lock()
+
+	p, ok := g.playersByUsername[username]
 	if !ok {
 		return errors.New("could not connect player: player with username=" + username + " does not exist")
 	}
-	p.conn = conn
+	p.conn = con
+	g.playersByConn[con] = p
 
-	err = wsjson.Write(context.Background(), p.conn, gameMessage{"self", *p})
-	err = g.broadcastMessage("join", *g)
-	return
+	g.mu.Unlock()
+
+	// TODO(ws_err): handle ws error
+	_ = con.SendJson("self", p)
+
+	g.broadcastMessage("join", g)
+
+	return nil
 }
 
-func (g *classic) handleMessage(message string, body json.RawMessage) (err error) {
-	m := newPlayerMessage(message, body)
+// handleMessage processes a message from a player. The message is sent to the
+// game goroutine for processing. The game goroutine sends a response back to
+// the player through the player's channel. Returns an error if the player does
+// not exist.
+func (g *classic) handleMessage(con conn, message string, body json.RawMessage) error {
+	p, ok := g.playersByConn[con]
+	if !ok {
+		return errors.New("could not handle message: player with connection does not exist")
+	}
+
+	m := classicMessage{baseMessage{message, body}, p}
 
 	g.c <- m
-	err = <-m.errCh
-
-	return
-}
-
-func (g *classic) broadcastMessage(message string, body any) (err error) {
-	m := gameMessage{message, body}
-
-	for _, p := range g.Players {
-		if p.conn == nil {
-			continue
-		}
-		if err = wsjson.Write(context.Background(), p.conn, m); err != nil {
-			// TODO: handle error
-		}
+	err := <-p.c
+	if err != nil {
+		// TODO(ws_err): handle msg from game goroutine error
 	}
 
 	return nil
 }
 
-func (g *classic) start() {
-	if g.started {
-		// TODO: log
-		return
+// broadcastMessage sends a message to all players in the game. If a player's
+// connection is nil, the message is not sent to the player. Returns a list of
+// potentially nil errors for each connection that failed to send the message.
+func (g *classic) broadcastMessage(message string, _ any) {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+
+	errs := make([]error, 0, len(g.Players)+len(g.Spectators))
+	for _, p := range g.Players {
+		if p.conn == nil {
+			continue
+		}
+		// TODO(compact_ws): send compact messages
+		err := p.conn.SendJson(message, g)
+		errs = append(errs, err)
 	}
-	g.started = true
+	for _, s := range g.Spectators {
+		if s.conn == nil {
+			continue
+		}
+		// TODO(compact_ws): send compact messages
+		err := s.conn.SendJson(message, g)
+		errs = append(errs, err)
+	}
+
+	// TODO(ws_err): handle broadcast ws error
+}
+
+func (g *classic) start() {
+	messageFuncs := map[string]map[string]func(classicMessage) error{
+		waitingPhase: {
+			"ready": g.onMessageReady,
+		},
+		answerPhase: {
+			"answer": g.onMessageAnswer,
+		},
+	}
 
 	for {
 		select {
-		case m := <-g.c:
-			switch g.phase.now {
-			case waitingPhase:
-				switch m.Message {
-				case "ready":
-					var body struct {
-						Username string `json:"username"`
-					}
-					if err := json.Unmarshal(m.Body, &body); err != nil {
-						m.errCh <- err
-						continue
-					}
-
-					if _, ok := g.Players[body.Username]; !ok {
-						m.errCh <- errors.New("could not handle message: player with username=" + body.Username + " does not exist")
-						continue
-					}
-
-					g.Players[body.Username].IsReady = true
-					if err := g.broadcastMessage("ready", body); err != nil {
-						m.errCh <- err
-						continue
-					}
-
-					// next phase if all players are ready
-					for _, p := range g.Players {
-						if !p.IsReady {
-							continue
-						}
-					}
-					g.phase.next()
-
-					// choose random pedestal then broadcastMessage
-					playerUsernames := make([]string, 0, len(g.Players))
-					for username := range g.Players {
-						playerUsernames = append(playerUsernames, username)
-					}
-					g.pedestal = playerUsernames[rand.Intn(len(playerUsernames))]
-					if err := g.broadcastMessage(g.phase.String(), g.pedestal); err != nil {
-						m.errCh <- err
-						continue
-					}
-
-					m.errCh <- nil
-				default:
-					m.errCh <- errors.New("could not handle message: message=" + m.Message + " is invalid during phase=" + g.phase.String())
-				}
-
-			case previewPhase:
-				switch m.Message {
-				default:
-					m.errCh <- errors.New("could not handle message: message=" + m.Message + " is invalid during phase=" + g.phase.String())
-				}
-
-			case answerPhase:
-				switch m.Message {
-				case "answer":
-					var body struct {
-						Username string `json:"username"`
-						Answer   string `json:"answer"`
-					}
-					if err := json.Unmarshal(m.Body, &body); err != nil {
-						m.errCh <- err
-						continue
-					}
-
-					g.Players[body.Username].Answer = body.Answer
-
-					m.errCh <- nil
-				default:
-					m.errCh <- errors.New("could not handle message: message=" + m.Message + " is invalid during phase=" + g.phase.String())
-				}
-
-			case revealPhase:
-				switch m.Message {
-				case "next":
-					var body struct {
-						Username string `json:"username"`
-					}
-					if err := json.Unmarshal(m.Body, &body); err != nil {
-						m.errCh <- err
-						continue
-					}
-
-					if g.Host != body.Username {
-						m.errCh <- errors.New("could not handle message: player with username=" + body.Username + " is not the host")
-						continue
-					}
-					g.phase.next()
-
-					m.errCh <- nil
-				default:
-					m.errCh <- errors.New("could not handle message: message=" + m.Message + " is invalid during phase=" + g.phase.String())
+		case msg := <-g.c:
+			if f, ok := messageFuncs[g.Phase.String()][msg.message]; ok {
+				if err := f(msg); err != nil {
+					// f returns error only if the message is invalid.
+					// Websocket errors will already be handled.
+					// TODO(ws_err): handle msg from player error
 				}
 			}
-		case <-g.ticker.C:
-			switch g.phase.now {
+		case phase := <-g.Phase.c:
+			switch phase {
+			case waitingPhase:
 			case previewPhase:
-				g.phase.next()
-				g.word = g.words[rand.Intn(len(g.words))]
-				if err := g.broadcastMessage(g.phase.String(), g.word); err != nil {
-					// TODO: log
-				}
+				g.Pedestal = g.Players[rand.Intn(len(g.Players))].Username
+				g.broadcastMessage(phase, g.Pedestal)
 			case answerPhase:
-				g.phase.next()
+				if len(g.Word.words) == 0 {
+					// TODO(word): handle word pack selection
+					// TODO(game_config): make word pack configurable
+					g.Word, _ = newWordManager("standard.txt")
+					// TODO(word): handle word manager error
+				}
 
+				g.broadcastMessage(phase, g.Word.String())
+			case revealPhase:
 				matches := 0
-				// TODO: add metric to options
-				m := metrics.NewHamming()
-				for _, p := range g.Players {
-					if p.Username == g.pedestal {
+				pedestal := g.playersByUsername[g.Pedestal]
+				for _, player := range g.Players {
+					if player.Username == g.Pedestal {
 						continue
 					}
 
-					// TODO: add string proximity to options
-					if strutil.Similarity(p.Answer, g.Players[g.pedestal].Answer, m) > 0.8 {
-						p.Score += 10
+					if strutil.Similarity(player.Answer, pedestal.Answer, g.metric) > 0.8 {
+						player.Score += 10
 						matches++
 					}
 				}
-				g.Players[g.pedestal].Score += max((matches/len(g.Players))*10, 5)
+				pedestal.Score += max((matches/(len(g.Players)-1))*10, 5)
 
-				if err := g.broadcastMessage(g.phase.String(), g.Players); err != nil {
-					// TODO: log
-				}
-			default:
-				continue
+				g.broadcastMessage(phase, g.Players)
 			}
 		}
 	}
+}
+
+// onMessageReady is the message handler for "ready" during waitingPhase.
+func (g *classic) onMessageReady(m classicMessage) error {
+	m.p.IsReady = true
+	g.broadcastMessage("ready", m)
+
+	for _, p := range g.Players {
+		if !p.IsReady {
+			return nil
+		}
+	}
+	// TODO(game_config): make phase duration configurable
+	go g.Phase.startRound(5 * time.Second)
+
+	return nil
+}
+
+// onMessageAnswer is the message handler for "answer" during answerPhase.
+func (g *classic) onMessageAnswer(m classicMessage) error {
+	var body struct {
+		Answer string `json:"answer"`
+	}
+	if err := json.Unmarshal(m.body, &body); err != nil {
+		return err
+	}
+	m.p.Answer = body.Answer
+
+	return nil
 }
