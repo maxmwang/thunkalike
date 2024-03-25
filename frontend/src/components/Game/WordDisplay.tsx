@@ -1,10 +1,10 @@
 import { Typography } from '@mui/material';
 import React, { useContext, useEffect, useState } from 'react';
 
-import SocketContext from '../api/socket';
-import type { GameData } from '../const';
+import SocketContext from '../../api/socket';
+import type { GameData } from '../../const';
 
-import '../styles/components/word-display.css';
+import '../../styles/components/word-display.css';
 
 function WordDisplay() {
   const [word, setWord] = useState('');

@@ -2,10 +2,10 @@ import ChairAltIcon from '@mui/icons-material/ChairAlt';
 import { Typography } from '@mui/material';
 import React, { useContext, useEffect, useState } from 'react';
 
-import SocketContext from '../api/socket';
-import type { GameData } from '../const';
-import { GameModes } from '../const';
-import '../styles/components/player-list.css';
+import SocketContext from '../../api/socket';
+import type { GameData } from '../../const';
+import { GameModes } from '../../const';
+import '../../styles/components/player-list.css';
 
 interface PlayerListProps {
   mode: GameData['mode'];

@@ -2,9 +2,9 @@ import SendIcon from '@mui/icons-material/Send';
 import { TextField, Typography } from '@mui/material';
 import React, { useContext, useEffect, useState } from 'react';
 
-import SocketContext from '../api/socket';
+import SocketContext from '../../api/socket';
 
-import '../styles/components/answer-input.css';
+import '../../styles/components/answer-input.css';
 
 enum Views {
   READY,

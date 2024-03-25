@@ -2,7 +2,7 @@ import LinkIcon from '@mui/icons-material/Link';
 import { Typography } from '@mui/material';
 import React, { useState } from 'react';
 
-import '../styles/components/game-info.css';
+import '../../styles/components/game-info.css';
 
 interface GameInfoProps {
   code: string;

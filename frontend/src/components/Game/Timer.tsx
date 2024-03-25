@@ -5,7 +5,7 @@ import React, {
   useState,
 } from 'react';
 
-import '../styles/components/timer.css';
+import '../../styles/components/timer.css';
 
 function Timer() {
   const [timeLeft, setTimeLeft] = useState('0');

@@ -2,10 +2,10 @@ import { CircularProgress, Divider, Grid } from '@mui/material';
 import React, { useContext, useEffect, useState } from 'react';
 
 import SocketContext from '../api/socket';
-import Board from '../components/Board';
-import GameInfo from '../components/GameInfo';
-import PlayerList from '../components/PlayerList';
-import Start from '../components/Start';
+import Board from '../components/Game/Board';
+import GameInfo from '../components/Game/GameInfo';
+import PlayerList from '../components/Game/PlayerList';
+import Start from '../components/Game/Start';
 import type { GameData, PlayerData } from '../const';
 import { GamePhases } from '../const';
 

@@ -1,8 +1,8 @@
 import { Button, Typography } from '@mui/material';
 import React, { useContext } from 'react';
 
-import '../styles/components/start.css';
-import SocketContext from '../api/socket';
+import '../../styles/components/start.css';
+import SocketContext from '../../api/socket';
 
 interface StartProps {
   username: string;
