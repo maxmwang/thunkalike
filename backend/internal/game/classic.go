@@ -18,7 +18,7 @@ type classicPlayer struct {
 	// In classic mode, a player's score at the end of a round depends on if
 	// the player was the pedestal or not. If the player was the pedestal,
 	// the player's score is calculated by:
-	// 	score += max(n / (N - 1) * 10, 5)
+	// 	score += min(n / (N - 1) * 10, 5)
 	// where n is the number of players who guessed the player's answer and N
 	// is the total number of players. If the player was not the pedestal and
 	// the player's answer is similar to the pedestal's, then the player's
@@ -258,7 +258,7 @@ func (g *classic) start() {
 						matches++
 					}
 				}
-				pedestal.Score += max((matches/(len(g.Players)-1))*10, 5)
+				pedestal.Score += min((matches/(len(g.Players)-1))*10, 5)
 				g.mu.Unlock()
 
 				g.broadcastMessage(phase, g.Players)
