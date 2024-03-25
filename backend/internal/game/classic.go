@@ -236,10 +236,10 @@ func (g *classic) start() {
 				g.mu.RUnlock()
 				g.broadcastMessage(phase, g.Pedestal)
 			case answerPhase:
-				if len(g.Word.words) == 0 {
+				if g.Word == nil {
 					// TODO(word): handle word pack selection
 					// TODO(game_config): make word pack configurable
-					g.Word, _ = newWordManager("standard.txt")
+					g.Word, _ = newWordManager("standard")
 					// TODO(word): handle word manager error
 				}
 

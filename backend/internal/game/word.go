@@ -9,13 +9,14 @@ import (
 )
 
 func loadWords(pack string) ([]string, error) {
-	fp, _ := filepath.Abs("./" + pack)
-	dat, err := os.ReadFile(fp)
+	fp, _ := filepath.Abs("./words/" + pack)
+	// TODO(word_err): check if file exists and return err before reading
+	raw, err := os.ReadFile(fp)
 	if err != nil {
 		return nil, err
 	}
 
-	words := strings.Split(string(dat), "\n")
+	words := strings.Split(string(raw), "\n")
 	return words[:len(words)-1], nil
 }
 
@@ -35,7 +36,8 @@ type wordManager struct {
 
 // newWordManager creates a new wordManager with the given pack's name. Also
 // polls the first word.
-func newWordManager(pack string) (wm wordManager, err error) {
+func newWordManager(pack string) (wm *wordManager, err error) {
+	wm = &wordManager{}
 	wm.words, err = loadWords(pack)
 	if err != nil {
 		return wm, err
@@ -46,7 +48,7 @@ func newWordManager(pack string) (wm wordManager, err error) {
 	return wm, nil
 }
 
-func (wm wordManager) next() {
+func (wm *wordManager) next() {
 	if wm.poll > len(wm.words) {
 		wm.lastUsed = make([]int, len(wm.words))
 	}
@@ -62,10 +64,10 @@ func (wm wordManager) next() {
 	}
 }
 
-func (wm wordManager) MarshalJSON() ([]byte, error) {
+func (wm *wordManager) MarshalJSON() ([]byte, error) {
 	return json.Marshal(wm.word)
 }
 
-func (wm wordManager) String() string {
+func (wm *wordManager) String() string {
 	return wm.word
 }
