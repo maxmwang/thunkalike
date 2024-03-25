@@ -40,7 +40,7 @@ type classic struct {
 
 	// Players is the list of players in the game. Spectators are not included
 	// in this list.
-	Players []classicPlayer `json:"players"`
+	Players []*classicPlayer `json:"players"`
 
 	// playersByUsername is a map of player usernames to players. Used to
 	// ensure unique usernames in the game and to identify players by
@@ -52,7 +52,7 @@ type classic struct {
 	playersByConn map[conn]*classicPlayer
 
 	// Spectators is the list of spectators in the game.
-	Spectators []classicPlayer `json:"spectators"`
+	Spectators []*classicPlayer `json:"spectators"`
 
 	// spectatorsByUsername is a map of spectator usernames to spectators.
 	// Used to ensure unique usernames in the game and to identify
@@ -65,7 +65,9 @@ type classic struct {
 	spectatorsByConn map[conn]*classicPlayer
 
 	// mu is the mutex that protects the Players and Spectators slices related
-	// maps. A lock is necessary to ensure usernames are unique.
+	// maps since those fields are accessed by both websocket connection
+	// goroutines and the game goroutine. Other fields are only accessed by
+	// one.
 	mu sync.RWMutex
 
 	// Pedestal is the username of the current pedestal player. Empty if the
@@ -82,13 +84,15 @@ func newClassic(code, host string) *classic {
 	g := classic{
 		base: newBase(code, "classic", host),
 
-		Players:           make([]classicPlayer, 0),
+		Players:           make([]*classicPlayer, 0),
 		playersByUsername: make(map[string]*classicPlayer),
 		playersByConn:     make(map[conn]*classicPlayer),
 
-		Spectators:           make([]classicPlayer, 0),
+		Spectators:           make([]*classicPlayer, 0),
 		spectatorsByUsername: make(map[string]*classicPlayer),
 		spectatorsByConn:     make(map[conn]*classicPlayer),
+
+		c: make(chan classicMessage),
 	}
 	go g.start()
 
@@ -98,6 +102,8 @@ func newClassic(code, host string) *classic {
 // addPlayer attempts to add a new player to the game. If the username is
 // already in the game, an error is returned. Must be called before
 // connectPlayer.
+//
+// Only called by a player's websocket connection goroutine.
 func (g *classic) addPlayer(username string) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -110,16 +116,18 @@ func (g *classic) addPlayer(username string) error {
 
 	// Add player to players slice. It is safe to use the last index because
 	// we have obtained the mutex.
-	g.Players = append(g.Players, classicPlayer{
+	g.Players = append(g.Players, &classicPlayer{
 		basePlayer: newBasePlayer(username),
 	})
-	g.playersByUsername[username] = &g.Players[len(g.Players)-1]
+	g.playersByUsername[username] = g.Players[len(g.Players)-1]
 
 	return nil
 }
 
 // connectPlayer attaches a websocket connection to a player. If the player
 // does not exist, an error is returned. Must be called after addPlayer.
+//
+// Only called by a player's websocket connection goroutine.
 func (g *classic) connectPlayer(username string, con conn) error {
 	g.mu.Lock()
 
@@ -144,8 +152,12 @@ func (g *classic) connectPlayer(username string, con conn) error {
 // game goroutine for processing. The game goroutine sends a response back to
 // the player through the player's channel. Returns an error if the player does
 // not exist.
+//
+// Only called by a player's websocket connection goroutine.
 func (g *classic) handleMessage(con conn, message string, body json.RawMessage) error {
+	g.mu.RLock()
 	p, ok := g.playersByConn[con]
+	g.mu.RUnlock()
 	if !ok {
 		return errors.New("could not handle message: player with connection does not exist")
 	}
@@ -164,6 +176,8 @@ func (g *classic) handleMessage(con conn, message string, body json.RawMessage) 
 // broadcastMessage sends a message to all players in the game. If a player's
 // connection is nil, the message is not sent to the player. Returns a list of
 // potentially nil errors for each connection that failed to send the message.
+//
+// Called by both the game goroutine and a player's websocket connection.
 func (g *classic) broadcastMessage(message string, _ any) {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
@@ -189,6 +203,9 @@ func (g *classic) broadcastMessage(message string, _ any) {
 	// TODO(ws_err): handle broadcast ws error
 }
 
+// start is the main game loop for classic mode and is run by the game
+// goroutine. It listens for messages from players and changes the game phase
+// based on the messages received.
 func (g *classic) start() {
 	messageFuncs := map[string]map[string]func(classicMessage) error{
 		waitingPhase: {
@@ -203,17 +220,20 @@ func (g *classic) start() {
 		select {
 		case msg := <-g.c:
 			if f, ok := messageFuncs[g.Phase.String()][msg.message]; ok {
-				if err := f(msg); err != nil {
-					// f returns error only if the message is invalid.
-					// Websocket errors will already be handled.
-					// TODO(ws_err): handle msg from player error
-				}
+				err := f(msg)
+				// f returns error only if the message is invalid.
+				// Websocket errors will already be handled.
+				msg.p.c <- err
+			} else {
+				msg.p.c <- errors.New("could not handle message: message is invalid during phase=" + g.Phase.String())
 			}
 		case phase := <-g.Phase.c:
 			switch phase {
 			case waitingPhase:
 			case previewPhase:
+				g.mu.RLock()
 				g.Pedestal = g.Players[rand.Intn(len(g.Players))].Username
+				g.mu.RUnlock()
 				g.broadcastMessage(phase, g.Pedestal)
 			case answerPhase:
 				if len(g.Word.words) == 0 {
@@ -225,6 +245,7 @@ func (g *classic) start() {
 
 				g.broadcastMessage(phase, g.Word.String())
 			case revealPhase:
+				g.mu.Lock()
 				matches := 0
 				pedestal := g.playersByUsername[g.Pedestal]
 				for _, player := range g.Players {
@@ -238,6 +259,7 @@ func (g *classic) start() {
 					}
 				}
 				pedestal.Score += max((matches/(len(g.Players)-1))*10, 5)
+				g.mu.Unlock()
 
 				g.broadcastMessage(phase, g.Players)
 			}
@@ -247,9 +269,14 @@ func (g *classic) start() {
 
 // onMessageReady is the message handler for "ready" during waitingPhase.
 func (g *classic) onMessageReady(m classicMessage) error {
+	g.mu.Lock()
 	m.p.IsReady = true
+	g.mu.Unlock()
+
 	g.broadcastMessage("ready", m)
 
+	g.mu.RLock()
+	defer g.mu.RUnlock()
 	for _, p := range g.Players {
 		if !p.IsReady {
 			return nil
@@ -269,7 +296,10 @@ func (g *classic) onMessageAnswer(m classicMessage) error {
 	if err := json.Unmarshal(m.body, &body); err != nil {
 		return err
 	}
+
+	g.mu.Lock()
 	m.p.Answer = body.Answer
+	g.mu.Unlock()
 
 	return nil
 }

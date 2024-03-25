@@ -3,6 +3,8 @@ import { consola } from 'consola';
 import fetch from 'node-fetch';
 import WebSocket from 'ws';
 
+const apiPrefix = 'http://localhost:5001/api';
+
 class WS {
   code: string;
 
@@ -12,7 +14,7 @@ class WS {
 
   l: ConsolaInstance;
 
-  ws = new WebSocket('ws://localhost:5001/game/ws');
+  ws = new WebSocket('ws://localhost:5001/ws');
 
   constructor(code: string, i: number) {
     this.code = code;
@@ -66,7 +68,7 @@ class WS {
 async function newHost(i: number) {
   const username = `host${i}`;
 
-  const res = await fetch('http://localhost:5001/game/create', {
+  const res = await fetch(`${apiPrefix}/game/create`, {
     method: 'POST',
     body: JSON.stringify({
       username,
@@ -90,7 +92,7 @@ async function newHost(i: number) {
 async function newPlayer(i: number, code: string) {
   const username = `player${i}`;
 
-  const res = await fetch('http://localhost:5001/game/join', {
+  const res = await fetch(`${apiPrefix}/game/join`, {
     method: 'POST',
     body: JSON.stringify({
       username,
@@ -110,20 +112,22 @@ async function newPlayer(i: number, code: string) {
 
 async function main() {
   const NUM_HOSTS = 1;
-  const NUM_PLAYERS = 2;
+  const NUM_PLAYERS = 3;
 
   for (let i = 0; i < NUM_HOSTS; i++) {
     const { ws: hostWS, code } = await newHost(i);
-    const playerWSs = [];
+    const playerWSs: WS[] = [];
 
     for (let j = 1; j < NUM_PLAYERS; j++) {
       playerWSs.push(await newPlayer(j, code));
     }
 
-    hostWS.send('ready', code, { username: hostWS.username });
+    hostWS.send('ready', code, {});
+    playerWSs.forEach((ws) => ws.send('ready', code, {}));
   }
 }
 
 if (require.main === module) {
-  main();
+  main()
+    .then((r) => console.log('Done:', r));
 }
