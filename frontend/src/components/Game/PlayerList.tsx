@@ -28,7 +28,7 @@ function PlayerList({
         setThePedestal(data.pedestal);
       }
     });
-  });
+  }, []);
 
   return (
     <div id="player-list">

@@ -31,7 +31,6 @@ export class Socket {
   }
 
   on(event: string, callback: (...args: any[]) => void) {
-    console.log(this);
     if (!(event in this.events)) {
       this.events[event] = [];
     }
@@ -39,7 +38,6 @@ export class Socket {
   }
 
   private waitForSocketToOpen(count: number = 0) {
-    console.log(count);
     return new Promise<boolean>((resolve) => {
       setTimeout(() => {
         if (this.ws.readyState === WebSocket.OPEN) {

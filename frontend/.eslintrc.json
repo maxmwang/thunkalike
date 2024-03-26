@@ -63,6 +63,7 @@
     "@typescript-eslint/consistent-type-imports": "warn",
     "@typescript-eslint/no-use-before-define": "off",
     "jsx-a11y/click-events-have-key-events": "off",
-    "jsx-a11y/interactive-supports-focus": "off"
+    "jsx-a11y/interactive-supports-focus": "off",
+    "react/destructuring-assignment": "off"
   }
 }

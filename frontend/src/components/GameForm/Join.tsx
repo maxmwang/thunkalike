@@ -43,11 +43,11 @@ function Join({ connect, urlCode }: JoinProps) {
       });
     }
 
-    await wconnect(form.code, form.username);
+    await connect(form.code, form.username);
   };
 
-  const handleInput = (type: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm({ ...form, [type]: e.target.value, [`${type}Error`]: '' });
+  const handleInput = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    setForm({ ...form, [field]: e.target.value, [`${field}Error`]: '' });
   };
 
   return (

@@ -17,7 +17,7 @@ function Timer() {
     // on('startPhase', () => {
     //   setTimeLeft('0');
     // });
-  });
+  }, []);
 
   return (
     <div id="timer">

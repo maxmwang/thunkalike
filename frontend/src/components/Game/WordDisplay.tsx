@@ -19,7 +19,7 @@ function WordDisplay() {
     socket.on('answer', (data: GameData) => {
       setWord(data.word);
     });
-  });
+  }, []);
 
   return (
     <div id="word-display" className="paper">

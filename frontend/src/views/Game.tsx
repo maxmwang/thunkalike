@@ -37,7 +37,7 @@ function Game() {
     socket.on('reveal', (body: GameData) => {
       setGameData({ ...gameData, ...body });
     });
-  });
+  }, []);
 
   if (!gameData) {
     return (
