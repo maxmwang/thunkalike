@@ -5,8 +5,6 @@ import (
 	"net/http"
 	"time"
 
-	"backend/internal/game"
-
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"golang.org/x/time/rate"
@@ -17,7 +15,7 @@ import (
 func New() http.Handler {
 	r := chi.NewRouter()
 
-	gm := game.NewManager()
+	gm := newManager()
 
 	// TODO: custom logger
 	r.Use(middleware.Logger)
@@ -40,8 +38,8 @@ func New() http.Handler {
 			return
 		}
 
-		code := gm.Create(body.Mode, body.Username)
-		_ = gm.AddPlayer(code, body.Username) // code is valid, so this should not error
+		code := gm.create(body.Mode, body.Username)
+		_ = gm.addPlayer(code, body.Username) // code is valid, so this should not error
 
 		_ = encodeJson(w, createResponse{code}, http.StatusOK)
 	})
@@ -57,7 +55,7 @@ func New() http.Handler {
 			return
 		}
 
-		if gameErr := gm.AddPlayer(body.Code, body.Username); gameErr != nil {
+		if gameErr := gm.addPlayer(body.Code, body.Username); gameErr != nil {
 			reqErr = reqErrors{"code": gameErr.Error()}
 			_ = encodeJson(w, errorResponse{reqErr}, http.StatusBadRequest)
 			return
@@ -83,7 +81,7 @@ func New() http.Handler {
 			return
 		}
 
-		if err = gm.ConnectPlayer(msg.Code, msg.Username, (*conn)(c)); err != nil {
+		if err = gm.connectPlayer(msg.Code, msg.Username, c); err != nil {
 			// TODO: ws error handling
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -100,7 +98,7 @@ func New() http.Handler {
 				// TODO(ws_err): handle ws error
 			}
 
-			if err = gm.HandleMessage((*conn)(c), msg.Code, msg.Message, msg.Body); err != nil {
+			if err = gm.handleMessage(c, msg.Code, msg.Message, msg.Body); err != nil {
 				// TODO(ws_err): handle ws error
 				fmt.Println(err)
 				return

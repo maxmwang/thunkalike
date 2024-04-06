@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/adrg/strutil"
+	"nhooyr.io/websocket"
 )
 
 type classicPlayer struct {
@@ -35,7 +36,7 @@ type classicMessage struct {
 	p *classicPlayer
 }
 
-type classic struct {
+type Classic struct {
 	base
 
 	// Players is the list of players in the game. Spectators are not included
@@ -49,7 +50,7 @@ type classic struct {
 
 	// playersByConn is a map of player connections to players. Used to
 	// identify players by their websocket connection.
-	playersByConn map[conn]*classicPlayer
+	playersByConn map[*websocket.Conn]*classicPlayer
 
 	// Spectators is the list of spectators in the game.
 	Spectators []*classicPlayer `json:"spectators"`
@@ -62,7 +63,7 @@ type classic struct {
 
 	// spectatorsByConn is a map of spectator connections to spectators. Used
 	// to identify spectators by their websocket connection.
-	spectatorsByConn map[conn]*classicPlayer
+	spectatorsByConn map[*websocket.Conn]*classicPlayer
 
 	// mu is the mutex that protects the Players and Spectators slices related
 	// maps since those fields are accessed by both websocket connection
@@ -80,17 +81,17 @@ type classic struct {
 	c chan classicMessage
 }
 
-func newClassic(code, host string) *classic {
-	g := classic{
+func NewClassic(code, host string) *Classic {
+	g := Classic{
 		base: newBase(code, "classic", host),
 
 		Players:           make([]*classicPlayer, 0),
 		playersByUsername: make(map[string]*classicPlayer),
-		playersByConn:     make(map[conn]*classicPlayer),
+		playersByConn:     make(map[*websocket.Conn]*classicPlayer),
 
 		Spectators:           make([]*classicPlayer, 0),
 		spectatorsByUsername: make(map[string]*classicPlayer),
-		spectatorsByConn:     make(map[conn]*classicPlayer),
+		spectatorsByConn:     make(map[*websocket.Conn]*classicPlayer),
 
 		c: make(chan classicMessage),
 	}
@@ -99,12 +100,12 @@ func newClassic(code, host string) *classic {
 	return &g
 }
 
-// addPlayer attempts to add a new player to the game. If the username is
+// AddPlayer attempts to add a new player to the game. If the username is
 // already in the game, an error is returned. Must be called before
-// connectPlayer.
+// ConnectPlayer.
 //
 // Only called by a player's websocket connection goroutine.
-func (g *classic) addPlayer(username string) error {
+func (g *Classic) AddPlayer(username string) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
@@ -124,39 +125,39 @@ func (g *classic) addPlayer(username string) error {
 	return nil
 }
 
-// connectPlayer attaches a websocket connection to a player. If the player
-// does not exist, an error is returned. Must be called after addPlayer.
+// ConnectPlayer attaches a websocket connection to a player. If the player
+// does not exist, an error is returned. Must be called after AddPlayer.
 //
 // Only called by a player's websocket connection goroutine.
-func (g *classic) connectPlayer(username string, con conn) error {
+func (g *Classic) ConnectPlayer(username string, conn *websocket.Conn) error {
 	g.mu.Lock()
 
 	p, ok := g.playersByUsername[username]
 	if !ok {
 		return errors.New("could not connect player: player with username=" + username + " does not exist")
 	}
-	p.conn = con
-	g.playersByConn[con] = p
+	p.conn = conn
+	g.playersByConn[conn] = p
 
 	g.mu.Unlock()
 
 	// TODO(ws_err): handle ws error
-	_ = con.SendJson("self", p)
+	_ = sendJson(conn, "self", p)
 
 	g.broadcastMessage("join", g)
 
 	return nil
 }
 
-// handleMessage processes a message from a player. The message is sent to the
+// HandleMessage processes a message from a player. The message is sent to the
 // game goroutine for processing. The game goroutine sends a response back to
 // the player through the player's channel. Returns an error if the player does
 // not exist.
 //
 // Only called by a player's websocket connection goroutine.
-func (g *classic) handleMessage(con conn, message string, body json.RawMessage) error {
+func (g *Classic) HandleMessage(conn *websocket.Conn, message string, body json.RawMessage) error {
 	g.mu.RLock()
-	p, ok := g.playersByConn[con]
+	p, ok := g.playersByConn[conn]
 	g.mu.RUnlock()
 	if !ok {
 		return errors.New("could not handle message: player with connection does not exist")
@@ -178,7 +179,7 @@ func (g *classic) handleMessage(con conn, message string, body json.RawMessage) 
 // potentially nil errors for each connection that failed to send the message.
 //
 // Called by both the game goroutine and a player's websocket connection.
-func (g *classic) broadcastMessage(message string, _ any) {
+func (g *Classic) broadcastMessage(message string, _ any) {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
 
@@ -188,7 +189,7 @@ func (g *classic) broadcastMessage(message string, _ any) {
 			continue
 		}
 		// TODO(compact_ws): send compact messages
-		err := p.conn.SendJson(message, g)
+		err := sendJson(p.conn, message, g)
 		errs = append(errs, err)
 	}
 	for _, s := range g.Spectators {
@@ -196,7 +197,7 @@ func (g *classic) broadcastMessage(message string, _ any) {
 			continue
 		}
 		// TODO(compact_ws): send compact messages
-		err := s.conn.SendJson(message, g)
+		err := sendJson(s.conn, message, g)
 		errs = append(errs, err)
 	}
 
@@ -206,7 +207,7 @@ func (g *classic) broadcastMessage(message string, _ any) {
 // start is the main game loop for classic mode and is run by the game
 // goroutine. It listens for messages from players and changes the game phase
 // based on the messages received.
-func (g *classic) start() {
+func (g *Classic) start() {
 	messageFuncs := map[string]map[string]func(classicMessage) error{
 		waitingPhase: {
 			"ready": g.onMessageReady,
@@ -268,7 +269,7 @@ func (g *classic) start() {
 }
 
 // onMessageReady is the message handler for "ready" during waitingPhase.
-func (g *classic) onMessageReady(m classicMessage) error {
+func (g *Classic) onMessageReady(m classicMessage) error {
 	g.mu.Lock()
 	m.p.IsReady = true
 	g.mu.Unlock()
@@ -289,7 +290,7 @@ func (g *classic) onMessageReady(m classicMessage) error {
 }
 
 // onMessageAnswer is the message handler for "answer" during answerPhase.
-func (g *classic) onMessageAnswer(m classicMessage) error {
+func (g *Classic) onMessageAnswer(m classicMessage) error {
 	var body struct {
 		Answer string `json:"answer"`
 	}

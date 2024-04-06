@@ -1,15 +1,12 @@
 package server
 
 import (
-	"context"
 	"encoding/json"
-
-	"nhooyr.io/websocket"
-	"nhooyr.io/websocket/wsjson"
 )
 
 // HTTP types
 type (
+	reqErrors     map[string]string
 	errorResponse struct {
 		Errors reqErrors `json:"errors"`
 	}
@@ -32,7 +29,6 @@ type (
 type validator interface {
 	validate() reqErrors
 }
-type reqErrors map[string]string
 
 func (r createRequest) validate() reqErrors {
 	errs := reqErrors{}
@@ -71,18 +67,4 @@ type (
 		Message string          `json:"message"`
 		Body    json.RawMessage `json:"body"`
 	}
-	serverMessage struct {
-		Message string `json:"message"`
-		Body    any    `json:"body"`
-	}
 )
-
-type conn websocket.Conn
-
-// SendJson constructs a serverMessage with the given message and body,
-// then uses wsjson.Write to write the message to the websocket connection.
-func (c *conn) SendJson(message string, body any) error {
-	m := serverMessage{message, body}
-
-	return wsjson.Write(context.Background(), (*websocket.Conn)(c), m)
-}
