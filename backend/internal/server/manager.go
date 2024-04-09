@@ -5,15 +5,14 @@ import (
 	"errors"
 	"math/rand"
 
+	"backend/internal/conn"
 	g "backend/internal/game"
-
-	"nhooyr.io/websocket"
 )
 
 type game interface {
 	AddPlayer(username string) error
-	ConnectPlayer(username string, conn *websocket.Conn) error
-	HandleMessage(conn *websocket.Conn, message string, body json.RawMessage) error
+	ConnectPlayer(username string, con *conn.Conn) error
+	HandleMessage(con *conn.Conn, message string, body json.RawMessage) error
 }
 
 type manager struct {
@@ -53,23 +52,23 @@ func (gm *manager) addPlayer(code, username string) (err error) {
 }
 
 // connectPlayer connects an existing player's websocket connection
-func (gm *manager) connectPlayer(code, username string, conn *websocket.Conn) (err error) {
+func (gm *manager) connectPlayer(code, username string, con *conn.Conn) (err error) {
 	g, ok := gm.games[code]
 	if !ok {
 		return errors.New("could not connect player: game with code=" + code + " does not exist")
 	}
 
-	err = g.ConnectPlayer(username, conn)
+	err = g.ConnectPlayer(username, con)
 	return err
 }
 
-func (gm *manager) handleMessage(conn *websocket.Conn, code, message string, body json.RawMessage) (err error) {
+func (gm *manager) handleMessage(con *conn.Conn, code, message string, body json.RawMessage) (err error) {
 	g, ok := gm.games[code]
 	if !ok {
 		return errors.New("could not handle message: game with code=" + code + " does not exist")
 	}
 
-	err = g.HandleMessage(conn, message, body)
+	err = g.HandleMessage(con, message, body)
 	return err
 }
 

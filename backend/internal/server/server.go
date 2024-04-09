@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"time"
 
+	"backend/internal/conn"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"golang.org/x/time/rate"
@@ -81,7 +83,7 @@ func New() http.Handler {
 			return
 		}
 
-		if err = gm.connectPlayer(msg.Code, msg.Username, c); err != nil {
+		if err = gm.connectPlayer(msg.Code, msg.Username, (*conn.Conn)(c)); err != nil {
 			// TODO: ws error handling
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -98,7 +100,7 @@ func New() http.Handler {
 				// TODO(ws_err): handle ws error
 			}
 
-			if err = gm.handleMessage(c, msg.Code, msg.Message, msg.Body); err != nil {
+			if err = gm.handleMessage((*conn.Conn)(c), msg.Code, msg.Message, msg.Body); err != nil {
 				// TODO(ws_err): handle ws error
 				fmt.Println(err)
 				return

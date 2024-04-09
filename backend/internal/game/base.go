@@ -3,9 +3,10 @@ package game
 import (
 	"encoding/json"
 
+	"backend/internal/conn"
+
 	"github.com/adrg/strutil"
 	"github.com/adrg/strutil/metrics"
-	"nhooyr.io/websocket"
 )
 
 // basePlayer is the base struct of all player types. It contains common
@@ -24,7 +25,7 @@ type basePlayer struct {
 	Answer string `json:"answer"`
 
 	// conn is the websocket connection of the player.
-	conn *websocket.Conn
+	conn *conn.Conn
 
 	// c is the channel used to send error response messages to the player.
 	// The game goroutine will send an error message through this channel

@@ -7,8 +7,9 @@ import (
 	"sync"
 	"time"
 
+	"backend/internal/conn"
+
 	"github.com/adrg/strutil"
-	"nhooyr.io/websocket"
 )
 
 type classicPlayer struct {
@@ -50,7 +51,7 @@ type Classic struct {
 
 	// playersByConn is a map of player connections to players. Used to
 	// identify players by their websocket connection.
-	playersByConn map[*websocket.Conn]*classicPlayer
+	playersByConn map[*conn.Conn]*classicPlayer
 
 	// Spectators is the list of spectators in the game.
 	Spectators []*classicPlayer `json:"spectators"`
@@ -63,7 +64,7 @@ type Classic struct {
 
 	// spectatorsByConn is a map of spectator connections to spectators. Used
 	// to identify spectators by their websocket connection.
-	spectatorsByConn map[*websocket.Conn]*classicPlayer
+	spectatorsByConn map[*conn.Conn]*classicPlayer
 
 	// mu is the mutex that protects the Players and Spectators slices related
 	// maps since those fields are accessed by both websocket connection
@@ -87,11 +88,11 @@ func NewClassic(code, host string) *Classic {
 
 		Players:           make([]*classicPlayer, 0),
 		playersByUsername: make(map[string]*classicPlayer),
-		playersByConn:     make(map[*websocket.Conn]*classicPlayer),
+		playersByConn:     make(map[*conn.Conn]*classicPlayer),
 
 		Spectators:           make([]*classicPlayer, 0),
 		spectatorsByUsername: make(map[string]*classicPlayer),
-		spectatorsByConn:     make(map[*websocket.Conn]*classicPlayer),
+		spectatorsByConn:     make(map[*conn.Conn]*classicPlayer),
 
 		c: make(chan classicMessage),
 	}
@@ -129,20 +130,20 @@ func (g *Classic) AddPlayer(username string) error {
 // does not exist, an error is returned. Must be called after AddPlayer.
 //
 // Only called by a player's websocket connection goroutine.
-func (g *Classic) ConnectPlayer(username string, conn *websocket.Conn) error {
+func (g *Classic) ConnectPlayer(username string, con *conn.Conn) error {
 	g.mu.Lock()
 
 	p, ok := g.playersByUsername[username]
 	if !ok {
 		return errors.New("could not connect player: player with username=" + username + " does not exist")
 	}
-	p.conn = conn
-	g.playersByConn[conn] = p
+	p.conn = con
+	g.playersByConn[con] = p
 
 	g.mu.Unlock()
 
 	// TODO(ws_err): handle ws error
-	_ = sendJson(conn, "self", p)
+	_ = con.SendJson("self", p)
 
 	g.broadcastMessage("join", g)
 
@@ -155,9 +156,9 @@ func (g *Classic) ConnectPlayer(username string, conn *websocket.Conn) error {
 // not exist.
 //
 // Only called by a player's websocket connection goroutine.
-func (g *Classic) HandleMessage(conn *websocket.Conn, message string, body json.RawMessage) error {
+func (g *Classic) HandleMessage(con *conn.Conn, message string, body json.RawMessage) error {
 	g.mu.RLock()
-	p, ok := g.playersByConn[conn]
+	p, ok := g.playersByConn[con]
 	g.mu.RUnlock()
 	if !ok {
 		return errors.New("could not handle message: player with connection does not exist")
@@ -189,7 +190,7 @@ func (g *Classic) broadcastMessage(message string, _ any) {
 			continue
 		}
 		// TODO(compact_ws): send compact messages
-		err := sendJson(p.conn, message, g)
+		err := p.conn.SendJson(message, g)
 		errs = append(errs, err)
 	}
 	for _, s := range g.Spectators {
@@ -197,7 +198,7 @@ func (g *Classic) broadcastMessage(message string, _ any) {
 			continue
 		}
 		// TODO(compact_ws): send compact messages
-		err := sendJson(s.conn, message, g)
+		err := s.conn.SendJson(message, g)
 		errs = append(errs, err)
 	}
 
