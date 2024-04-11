@@ -4,18 +4,22 @@ import React from 'react';
 import AnswerInput from './AnswerInput';
 import Timer from './Timer';
 import WordDisplay from './WordDisplay';
+import type { GamePhases } from '../../const';
 
-function Board() {
+type BoardProps = {
+  phase: GamePhases;
+};
+function Board({ phase }: BoardProps) {
   return (
     <Grid container direction="column">
       <Grid item xs={2}>
-        <Timer />
+        <Timer phase={phase} />
       </Grid>
       <Grid item xs={6}>
-        <WordDisplay />
+        <WordDisplay phase={phase} />
       </Grid>
       <Grid item xs={4}>
-        <AnswerInput />
+        <AnswerInput phase={phase} />
       </Grid>
     </Grid>
   );

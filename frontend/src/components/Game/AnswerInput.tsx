@@ -3,27 +3,24 @@ import { TextField, Typography } from '@mui/material';
 import React, { useContext, useEffect, useState } from 'react';
 
 import SocketContext from '../../api/socket';
-
 import '../../styles/components/answer-input.css';
+import { GamePhases } from '../../const';
 
 enum Views {
-  READY,
-  READIED,
+  NULL,
   PREVIEW,
-  INPUT,
-  WAITING,
+  ANSWER,
+  ANSWERED,
 }
 
-function AnswerInput() {
-  const [view, setView] = useState<Views>(Views.READY);
+type AnswerInputProps = {
+  phase: string;
+};
+function AnswerInput({ phase }: AnswerInputProps) {
+  const [view, setView] = useState<Views>(Views.NULL);
   const [answer, setAnswer] = useState('');
 
   const socket = useContext(SocketContext);
-
-  const handleReady = () => {
-    socket.send({ code: 'TODO', message: 'ready', body: {} });
-    setView(Views.READIED);
-  };
 
   const handleAnswer = (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,37 +28,24 @@ function AnswerInput() {
     if (!answer) {
       return;
     }
-
-    socket.send({ code: 'TODO', message: 'answer', body: { answer } });
-    setView(Views.WAITING);
+    socket.send('answer', { answer });
+    setView(Views.ANSWERED);
   };
 
   useEffect(() => {
-    socket.on('preview', () => {
+    if (phase === GamePhases.PREVIEW) {
       setView(Views.PREVIEW);
-    });
-
-    socket.on('answer', () => {
+    } else if (phase === GamePhases.ANSWER) {
       setAnswer('');
-      setView(Views.INPUT);
-    });
-  });
+      setView(Views.ANSWER);
+    }
+  }, [phase]);
 
   const views: { [key in Views]: JSX.Element } = {
-    [Views.READY]: (
-      <div id="answer-ready">
-        <button type="button" className="pill pill-button" onClick={handleReady}>
-          Ready
-        </button>
-      </div>
-    ),
-    [Views.READIED]: (
-      <div id="answer-waiting">
+    [Views.NULL]: (
+      <div id="answer-null">
         <Typography className="fill" variant="overline">
-          Readied
-        </Typography>
-        <Typography className="fill" variant="overline">
-          Waiting for other players...
+          Waiting for game to start...
         </Typography>
       </div>
     ),
@@ -72,7 +56,7 @@ function AnswerInput() {
         </Typography>
       </div>
     ),
-    [Views.INPUT]: (
+    [Views.ANSWER]: (
       <form id="answer-input" onSubmit={handleAnswer}>
         <TextField
           className="fill"
@@ -89,7 +73,7 @@ function AnswerInput() {
         </button>
       </form>
     ),
-    [Views.WAITING]: (
+    [Views.ANSWERED]: (
       <div id="answer-waiting">
         <Typography className="fill" variant="overline">
           Answered

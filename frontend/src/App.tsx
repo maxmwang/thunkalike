@@ -14,7 +14,7 @@ function App() {
   const [view, setView] = useState<Views>(Views.LANDING);
   const socket = useMemo(() => new Socket(), []);
 
-  const { urlCode } = useParams();
+  const { code: urlCode } = useParams();
   const navigate = useNavigate();
 
   const connect = async (code: string, username: string) => {

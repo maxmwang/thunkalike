@@ -18,25 +18,16 @@ function Game() {
   const socket = useContext(SocketContext);
 
   useEffect(() => {
-    socket.on('self', (body: PlayerData) => {
-      setUsername(body.username);
-    });
+    const updatePlayerData = (body: PlayerData) => setUsername(body.username);
+    const updateGameData = (body: GameData) => setGameData({ ...gameData, ...body });
 
-    socket.on('join', (body: GameData) => {
-      setGameData({ ...gameData, ...body });
-    });
+    socket.on('self', updatePlayerData);
 
-    socket.on('ready', (body: GameData) => {
-      setGameData({ ...gameData, ...body });
-    });
-
-    socket.on('answer', (body: GameData) => {
-      setGameData({ ...gameData, ...body });
-    });
-
-    socket.on('reveal', (body: GameData) => {
-      setGameData({ ...gameData, ...body });
-    });
+    socket.on('join', updateGameData);
+    socket.on('ready', updateGameData);
+    socket.on('preview', updateGameData);
+    socket.on('answer', updateGameData);
+    socket.on('reveal', updateGameData);
   }, []);
 
   if (!gameData) {
@@ -70,8 +61,8 @@ function Game() {
 
         <Grid item xs>
           {gameData.phase === GamePhases.WAITING
-            ? <Start username={username} host={gameData.host} />
-            : <Board />}
+            ? <Start canReady={gameData.players.length >= 2} />
+            : <Board phase={gameData.phase} />}
         </Grid>
       </Grid>
     </div>

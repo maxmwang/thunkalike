@@ -1,6 +1,6 @@
 export enum GameModes {
-  CLASSIC = 'ClassicGame',
-  DUET = 'DuetGame',
+  CLASSIC = 'classic',
+  DUET = 'duet',
 }
 
 export enum GamePhases {
@@ -10,30 +10,34 @@ export enum GamePhases {
   REVEAL = 'reveal',
 }
 
-interface AbstractPlayerData {
+type BasePlayer = {
   username: string;
-  isHost: boolean;
   isReady: boolean;
   answer: string;
-}
-export interface ClassicPlayerData extends AbstractPlayerData {
-  score: number;
-}
-export interface DuetPlayerData extends AbstractPlayerData {}
+};
 
-interface AbstractGameData {
+export type ClassicPlayer = BasePlayer & {
+  score: number;
+};
+export type DuetPlayer = BasePlayer & {};
+
+type BaseGame = {
   code: string;
   mode: string;
-  word: string;
   host: string;
   phase: GamePhases;
-  players: AbstractPlayerData[];
-}
-export interface ClassicGameData extends AbstractGameData {
-  players: ClassicPlayerData[];
-  pedestal: string;
-}
-export interface DuetGameData extends AbstractGameData {}
+  word: string;
+};
 
-export type PlayerData = ClassicPlayerData | DuetPlayerData;
-export type GameData = ClassicGameData | DuetGameData;
+export type ClassicGame = BaseGame & {
+  mode: GameModes.CLASSIC;
+  players: ClassicPlayer[];
+  spectators: ClassicPlayer[];
+  pedestal: string;
+};
+export type DuetGame = BaseGame & {
+  players: DuetPlayer[];
+};
+
+export type PlayerData = ClassicPlayer | DuetPlayer;
+export type GameData = ClassicGame | DuetGame;

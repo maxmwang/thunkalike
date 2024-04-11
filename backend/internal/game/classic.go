@@ -233,9 +233,7 @@ func (g *Classic) start() {
 			switch phase {
 			case waitingPhase:
 			case previewPhase:
-				g.mu.RLock()
 				g.Pedestal = g.Players[rand.Intn(len(g.Players))].Username
-				g.mu.RUnlock()
 				g.broadcastMessage(phase, g.Pedestal)
 			case answerPhase:
 				if g.Word == nil {
@@ -247,7 +245,7 @@ func (g *Classic) start() {
 
 				g.broadcastMessage(phase, g.Word.String())
 			case revealPhase:
-				g.mu.Lock()
+				g.mu.RLock()
 				matches := 0
 				pedestal := g.playersByUsername[g.Pedestal]
 				for _, player := range g.Players {
@@ -261,7 +259,7 @@ func (g *Classic) start() {
 					}
 				}
 				pedestal.Score += min((matches/(len(g.Players)-1))*10, 5)
-				g.mu.Unlock()
+				g.mu.RUnlock()
 
 				g.broadcastMessage(phase, g.Players)
 			}
@@ -271,12 +269,12 @@ func (g *Classic) start() {
 
 // onMessageReady is the message handler for "ready" during waitingPhase.
 func (g *Classic) onMessageReady(m classicMessage) error {
-	g.mu.Lock()
 	m.p.IsReady = true
-	g.mu.Unlock()
-
 	g.broadcastMessage("ready", m)
 
+	if len(g.Players) < 2 {
+		return nil
+	}
 	g.mu.RLock()
 	defer g.mu.RUnlock()
 	for _, p := range g.Players {
@@ -299,9 +297,7 @@ func (g *Classic) onMessageAnswer(m classicMessage) error {
 		return err
 	}
 
-	g.mu.Lock()
 	m.p.Answer = body.Answer
-	g.mu.Unlock()
 
 	return nil
 }

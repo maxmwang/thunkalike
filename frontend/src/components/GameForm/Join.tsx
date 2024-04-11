@@ -12,7 +12,7 @@ type JoinProps = {
 };
 function Join({ connect, urlCode }: JoinProps) {
   const [form, setForm] = useState({
-    code: urlCode || '',
+    code: urlCode?.toUpperCase() || '',
     username: '',
 
     codeError: '',
@@ -41,13 +41,14 @@ function Join({ connect, urlCode }: JoinProps) {
         codeError: capitalize((data.response as ErrorResponse).errors.code),
         usernameError: capitalize((data.response as ErrorResponse).errors.username),
       });
+      return;
     }
 
     await connect(form.code, form.username);
   };
 
   const handleInput = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm({ ...form, [field]: e.target.value, [`${field}Error`]: '' });
+    setForm({ ...form, [field]: field === 'code' ? e.target.value.toUpperCase() : e.target.value, [`${field}Error`]: '' });
   };
 
   return (

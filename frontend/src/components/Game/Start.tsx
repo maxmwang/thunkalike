@@ -1,27 +1,45 @@
 import { Button, Typography } from '@mui/material';
-import React, { useContext } from 'react';
+import React, { useContext, useState } from 'react';
 
 import '../../styles/components/start.css';
 import SocketContext from '../../api/socket';
 
-interface StartProps {
-  username: string;
-  host: string;
-}
-function Start({ username, host }: StartProps) {
+type StartProps = {
+  canReady: boolean;
+};
+function Start({ canReady }: StartProps) {
+  const [isReady, setIsReady] = useState(false);
+
   const socket = useContext(SocketContext);
 
-  if (username === host) {
+  const onReady = () => {
+    setIsReady(true);
+    socket.send('ready');
+  };
+
+  if (!canReady) {
     return (
       <div id="start">
-        <Button variant="contained" onClick={() => { socket.send({ code: 'TODO', message: 'TODO', body: {} }); }}>Start</Button>
+        <Typography className="fill" variant="overline">
+          Must have at least 2 players to start.
+        </Typography>
       </div>
     );
   }
-
+  if (!isReady) {
+    return (
+      <div id="start">
+        <Button variant="contained" onClick={() => onReady()}>
+          Ready
+        </Button>
+      </div>
+    );
+  }
   return (
     <div id="start">
-      <Typography>Waiting for host to start game...</Typography>
+      <Typography className="fill" variant="overline">
+        Waiting for other players...
+      </Typography>
     </div>
   );
 }

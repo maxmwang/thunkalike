@@ -5,6 +5,8 @@ import type { PlayerMessage, ServerMessage } from './api';
 export class Socket {
   private ws!: WebSocket;
 
+  private code!: string;
+
   private events: { [key: string]: ((...args: any[]) => void)[] } = {};
 
   async connect(code: string, username: string) {
@@ -24,10 +26,11 @@ export class Socket {
     } else {
       console.error('Could not connect to the server');
     }
+    this.code = code;
   }
 
-  send(message: PlayerMessage) {
-    this.ws.send(JSON.stringify(message));
+  send(message: string, body: any = {}) {
+    this.ws.send(JSON.stringify({ code: this.code, message, body } as PlayerMessage));
   }
 
   on(event: string, callback: (...args: any[]) => void) {

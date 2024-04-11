@@ -3,7 +3,7 @@ import { Typography } from '@mui/material';
 import React, { useContext, useEffect, useState } from 'react';
 
 import SocketContext from '../../api/socket';
-import type { GameData } from '../../const';
+import type { ClassicGame, ClassicPlayer, GameData } from '../../const';
 import { GameModes } from '../../const';
 import '../../styles/components/player-list.css';
 
@@ -23,9 +23,8 @@ function PlayerList({
 
   useEffect(() => {
     socket.on('preview', (data: GameData) => {
-      if ('pedestal' in data) {
-        console.log(data.pedestal);
-        setThePedestal(data.pedestal);
+      if (data.mode === GameModes.CLASSIC) {
+        setThePedestal((data as ClassicGame).pedestal);
       }
     });
   }, []);
@@ -43,8 +42,8 @@ function PlayerList({
           </Typography>
 
           {mode === GameModes.CLASSIC
-            ? <Typography>{(player as any).score}</Typography>
-            : null}
+            ? <Typography>{(player as ClassicPlayer).score}</Typography>
+            : null /* TODO(duet) */}
         </div>
       ))}
     </div>
