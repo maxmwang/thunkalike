@@ -232,6 +232,11 @@ func (g *Classic) start() {
 		case phase := <-g.Phase.c:
 			switch phase {
 			case waitingPhase:
+				for _, p := range g.Players {
+					p.IsReady = false
+				}
+
+				g.broadcastMessage(phase, "")
 			case previewPhase:
 				g.Pedestal = g.Players[rand.Intn(len(g.Players))].Username
 				g.broadcastMessage(phase, g.Pedestal)

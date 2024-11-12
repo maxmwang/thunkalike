@@ -1,6 +1,6 @@
 import TimerIcon from '@mui/icons-material/Timer';
 import { Typography } from '@mui/material';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 import '../../styles/components/timer.css';
 import { GamePhases } from '../../const';
@@ -11,24 +11,26 @@ type TimerProps = {
   phase: string;
 };
 function Timer({ phase }: TimerProps) {
-  const [start, setStart] = useState(Date.now());
+  const start = useRef(Date.now());
   const [display, setDisplay] = useState(zero);
 
   useEffect(() => {
-    if (phase === GamePhases.PREVIEW || phase === GamePhases.ANSWER) {
-      setStart(Date.now());
+    if (phase === GamePhases.PREVIEW
+        || phase === GamePhases.ANSWER
+        || phase === GamePhases.REVEAL) {
+      start.current = Date.now();
       const interval = setInterval(() => {
-        const since = (Date.now() - start) / 1000;
+        const since = (Date.now() - start.current) / 1000;
 
         // TODO: listen for config changes for phase duration
         if (since > 5) {
           clearInterval(interval);
           setDisplay(zero);
-          return;
+        } else {
+          setDisplay((5 - since).toFixed(1).toString());
         }
-        setDisplay((5 - since).toFixed(1).toString());
       }, 100);
-    } else if (phase === GamePhases.REVEAL) {
+    } else {
       setDisplay(zero);
     }
   }, [phase]);

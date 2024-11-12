@@ -37,6 +37,7 @@ export type ClassicGame = BaseGame & {
 };
 export type DuetGame = BaseGame & {
   players: DuetPlayer[];
+  pedestal: '';
 };
 
 export type PlayerData = ClassicPlayer | DuetPlayer;

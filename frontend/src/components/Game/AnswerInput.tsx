@@ -4,6 +4,7 @@ import React, { useContext, useEffect, useState } from 'react';
 
 import SocketContext from '../../api/socket';
 import '../../styles/components/answer-input.css';
+import type { ClassicPlayer } from '../../const';
 import { GamePhases } from '../../const';
 
 enum Views {
@@ -11,12 +12,14 @@ enum Views {
   PREVIEW,
   ANSWER,
   ANSWERED,
+  REVEAL,
 }
 
 type AnswerInputProps = {
   phase: string;
+  pedestal: ClassicPlayer | null;
 };
-function AnswerInput({ phase }: AnswerInputProps) {
+function AnswerInput({ phase, pedestal }: AnswerInputProps) {
   const [view, setView] = useState<Views>(Views.NULL);
   const [answer, setAnswer] = useState('');
 
@@ -38,6 +41,8 @@ function AnswerInput({ phase }: AnswerInputProps) {
     } else if (phase === GamePhases.ANSWER) {
       setAnswer('');
       setView(Views.ANSWER);
+    } else if (phase === GamePhases.REVEAL) {
+      setView(Views.REVEAL);
     }
   }, [phase]);
 
@@ -51,9 +56,11 @@ function AnswerInput({ phase }: AnswerInputProps) {
     ),
     [Views.PREVIEW]: (
       <div id="answer-preview">
+        {pedestal && (
         <Typography className="fill" variant="overline">
-          Pedestal Assigned
+          {`Pedestal Assigned: ${pedestal.username}`}
         </Typography>
+        )}
       </div>
     ),
     [Views.ANSWER]: (
@@ -81,6 +88,18 @@ function AnswerInput({ phase }: AnswerInputProps) {
         </Typography>
         <Typography className="fill" variant="overline">
           Waiting for other players...
+        </Typography>
+      </div>
+    ),
+    [Views.REVEAL]: (
+      <div id="answer-reveal">
+        {pedestal && (
+          <Typography className="fill" variant="overline">
+            {`Pedestal's Answer: ${pedestal.answer}`}
+          </Typography>
+        )}
+        <Typography className="fill" variant="overline">
+          {`Your Answer: ${answer}`}
         </Typography>
       </div>
     ),

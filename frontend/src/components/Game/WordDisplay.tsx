@@ -1,28 +1,20 @@
 import { Typography } from '@mui/material';
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 
+import type { GameData } from '../../const';
 import { GamePhases } from '../../const';
 
 import '../../styles/components/word-display.css';
 
 type WordDisplayProps = {
-  phase: string;
+  phase: GameData['phase'];
+  word: GameData['word'];
 };
-function WordDisplay({ phase }: WordDisplayProps) {
-  const [word, setWord] = useState('');
-
-  useEffect(() => {
-    if (phase === GamePhases.PREVIEW) {
-      setWord('');
-    } else if (phase === GamePhases.ANSWER) {
-      setWord('');
-    }
-  });
-
+function WordDisplay({ phase, word }: WordDisplayProps) {
   return (
     <div id="word-display" className="paper">
       <Typography variant="h4">
-        {word}
+        {phase === GamePhases.ANSWER || phase === GamePhases.REVEAL ? word : ''}
       </Typography>
     </div>
   );

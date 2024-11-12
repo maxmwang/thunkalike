@@ -6,8 +6,8 @@ import Board from '../components/Game/Board';
 import GameInfo from '../components/Game/GameInfo';
 import PlayerList from '../components/Game/PlayerList';
 import Start from '../components/Game/Start';
-import type { GameData, PlayerData } from '../const';
-import { GamePhases } from '../const';
+import type { ClassicGame, GameData, PlayerData } from '../const';
+import { GameModes, GamePhases } from '../const';
 
 import '../styles/views/game.css';
 
@@ -25,6 +25,7 @@ function Game() {
 
     socket.on('join', updateGameData);
     socket.on('ready', updateGameData);
+    socket.on('waiting', updateGameData);
     socket.on('preview', updateGameData);
     socket.on('answer', updateGameData);
     socket.on('reveal', updateGameData);
@@ -52,6 +53,7 @@ function Game() {
                 mode={gameData.mode}
                 username={username}
                 players={gameData.players}
+                pedestal={gameData.mode === GameModes.CLASSIC ? (gameData as ClassicGame).pedestal : ''}
               />
             </Grid>
           </Grid>
@@ -62,7 +64,17 @@ function Game() {
         <Grid item xs>
           {gameData.phase === GamePhases.WAITING
             ? <Start canReady={gameData.players.length >= 2} />
-            : <Board phase={gameData.phase} />}
+            : (
+              <Board
+                phase={gameData.phase}
+                pedestal={gameData.mode === GameModes.CLASSIC
+                  ? (gameData as ClassicGame).players.filter(
+                    (p) => p.username === (gameData as ClassicGame).pedestal,
+                  )[0]
+                  : null}
+                word={gameData.word}
+              />
+            )}
         </Grid>
       </Grid>
     </div>
